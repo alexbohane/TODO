@@ -49,6 +49,7 @@
     <nav class="tab-nav">
       <button class="tab-btn active" data-tab="todos">Todos</button>
       <button class="tab-btn" data-tab="wishlist">Wishlist</button>
+      <button class="tab-btn" data-tab="subs">Subs</button>
     </nav>
 
     <!-- ── Todos panel ── -->
@@ -158,6 +159,36 @@
       <div id="wishlist-categories"></div>
       <p id="wishlist-empty" class="empty-state" hidden>No categories yet — add one above.</p>
     </div>
+
+    <!-- ── Subscriptions panel ── -->
+    <div id="tab-subs" class="tab-panel" hidden>
+      <div class="subs-summary" id="subs-summary" hidden>
+        <div class="subs-total" id="subs-total"></div>
+        <div class="subs-breakdown" id="subs-breakdown"></div>
+      </div>
+
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Necessary</h2>
+          <span class="section-count" id="subs-necessary-count"></span>
+          <span class="section-total" id="subs-necessary-total"></span>
+          <button class="category-add-btn" data-action="add-sub" data-category="necessary">+ Add</button>
+        </div>
+        <ul class="wishlist-list" id="subs-necessary-list"></ul>
+        <p class="wishlist-section-empty" id="subs-necessary-empty">Nothing yet.</p>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Optional</h2>
+          <span class="section-count" id="subs-optional-count"></span>
+          <span class="section-total" id="subs-optional-total"></span>
+          <button class="category-add-btn" data-action="add-sub" data-category="optional">+ Add</button>
+        </div>
+        <ul class="wishlist-list" id="subs-optional-list"></ul>
+        <p class="wishlist-section-empty" id="subs-optional-empty">Nothing yet.</p>
+      </section>
+    </div>
   </div>
 
   <!-- Edit todo modal -->
@@ -246,6 +277,65 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="wish-modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Subscription modal -->
+  <div id="sub-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="sub-modal-title">Add Subscription</h2>
+        <button class="modal-close" id="sub-modal-close">&times;</button>
+      </div>
+      <form id="sub-form" novalidate>
+        <input type="hidden" id="sub-id">
+        <div class="form-group">
+          <label for="sub-name">Name</label>
+          <input type="text" id="sub-name" placeholder="e.g. Spotify">
+        </div>
+        <div class="form-row-fields">
+          <div class="form-group">
+            <label for="sub-price">Price</label>
+            <input type="number" id="sub-price" min="0" step="0.01" inputmode="decimal">
+          </div>
+          <div class="form-group">
+            <label for="sub-currency">Currency</label>
+            <select id="sub-currency">
+              <option value="EUR">€ EUR</option>
+              <option value="GBP">£ GBP</option>
+              <option value="USD">$ USD</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sub-cycle">Billing</label>
+            <select id="sub-cycle">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sub-category">Type</label>
+            <select id="sub-category">
+              <option value="necessary">Necessary</option>
+              <option value="optional">Optional</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="sub-paid-label">
+            <input type="checkbox" id="sub-covered">
+            Someone else pays for this
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="sub-notes">Notes</label>
+          <input type="text" id="sub-notes" placeholder="e.g. on Revolut card, family plan…">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="sub-modal-cancel">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>

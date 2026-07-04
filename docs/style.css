@@ -1378,6 +1378,72 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-style: italic;
 }
 
+/* ── Subscriptions ───────────────────────────────────────────────────────── */
+.subs-summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.subs-total {
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.subs-total .per {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.subs-breakdown {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sub-badge {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.sub-badge.covered-badge {
+  background: rgba(138, 168, 114, 0.18);
+  color: var(--success);
+}
+
+.wishlist-item.covered {
+  opacity: 0.55;
+}
+
+#tab-subs.detailed .wishlist-details {
+  display: block;
+}
+
+.sub-paid-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.sub-paid-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
 /* ── Login screen ────────────────────────────────────────────────────────── */
 .header-actions {
   display: flex;
