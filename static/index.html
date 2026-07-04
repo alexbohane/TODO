@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1 id="page-title">Todos</h1>
+      <button id="view-toggle" class="view-toggle" title="Toggle detailed view">
+        <span class="view-icon" id="view-icon">☰</span>
+      </button>
+    </header>
+
+    <!-- Tab navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="todos">Todos</button>
+      <button class="tab-btn" data-tab="wishlist">Wishlist</button>
+    </nav>
+
+    <!-- ── Todos panel ── -->
+    <div id="tab-todos" class="tab-panel">
+      <!-- Add todo -->
+      <form id="add-form" class="add-form" novalidate>
+        <div class="add-main">
+          <input type="text" id="title-input" class="add-input" placeholder="What needs to be done?" required>
+          <button type="submit" class="add-submit" title="Add">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="add-extras" id="add-extras">
+          <textarea id="desc-input" rows="1" class="add-desc" placeholder="Add notes…"></textarea>
+          <div class="add-options">
+            <input type="hidden" id="priority-input" value="medium">
+            <div class="priority-picker" id="priority-picker">
+              <button type="button" class="prio-dot-btn low" data-prio="low" title="Low priority"></button>
+              <button type="button" class="prio-dot-btn medium selected" data-prio="medium" title="Medium priority"></button>
+              <button type="button" class="prio-dot-btn high" data-prio="high" title="High priority"></button>
+            </div>
+            <div class="add-divider"></div>
+            <input type="date" id="due-input" class="add-date">
+            <input type="time" id="due-time-input" class="add-date">
+          </div>
+        </div>
+      </form>
+
+      <!-- Sort bar -->
+      <div id="section-sort-bar" class="section-sort-bar" hidden>
+        <div class="sort-dropdown" id="sort-dropdown">
+          <button class="sort-trigger" id="sort-trigger">
+            <span id="sort-label">Newest</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 5l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="sort-menu" id="sort-menu">
+            <button class="sort-option active" data-sort="newest">Newest first</button>
+            <button class="sort-option" data-sort="oldest">Oldest first</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming section (anything with a due date, soonest first) -->
+      <section class="section" id="upcoming-section" hidden>
+        <div class="section-header">
+          <div class="priority-dot upcoming"></div>
+          <h2 class="section-title">Upcoming</h2>
+          <span class="section-count" id="upcoming-count"></span>
+        </div>
+        <ul id="upcoming-list" class="todo-list"></ul>
+      </section>
+
+      <!-- High Priority section -->
+      <section class="section" id="high-section" hidden>
+        <div class="section-header">
+          <div class="priority-dot high"></div>
+          <h2 class="section-title">High Priority</h2>
+          <span class="section-count" id="high-count"></span>
+        </div>
+        <ul id="high-list" class="todo-list"></ul>
+      </section>
+
+      <!-- Medium Priority section -->
+      <section class="section" id="medium-section" hidden>
+        <div class="section-header">
+          <div class="priority-dot medium"></div>
+          <h2 class="section-title">Medium Priority</h2>
+          <span class="section-count" id="medium-count"></span>
+        </div>
+        <ul id="medium-list" class="todo-list"></ul>
+      </section>
+
+      <!-- Low Priority section -->
+      <section class="section" id="low-section" hidden>
+        <div class="section-header">
+          <div class="priority-dot low"></div>
+          <h2 class="section-title">Low Priority</h2>
+          <span class="section-count" id="low-count"></span>
+        </div>
+        <ul id="low-list" class="todo-list"></ul>
+      </section>
+
+      <p id="empty-state" class="empty-state" hidden>No todos yet — add one above.</p>
+
+      <!-- Done section -->
+      <section class="section section-done" id="done-section" hidden>
+        <div class="section-header">
+          <h2 class="section-title">Done</h2>
+          <span class="section-count" id="done-count"></span>
+        </div>
+        <ul id="done-list" class="todo-list"></ul>
+      </section>
+    </div>
+
+    <!-- ── Wishlist panel ── -->
+    <div id="tab-wishlist" class="tab-panel" hidden>
+      <!-- Add category -->
+      <form id="add-category-form" class="add-form-simple">
+        <div class="add-main">
+          <input type="text" id="category-input" class="add-input" placeholder="Add a category" required>
+          <button type="submit" class="add-submit" title="Add category">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </form>
+
+      <div id="wishlist-categories"></div>
+      <p id="wishlist-empty" class="empty-state" hidden>No categories yet — add one above.</p>
+    </div>
+  </div>
+
+  <!-- Edit todo modal -->
+  <div id="edit-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit Todo</h2>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <form id="edit-form" novalidate>
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label for="edit-title">Title</label>
+          <input type="text" id="edit-title" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-desc">Description</label>
+          <div class="md-editor">
+            <div class="md-tabs">
+              <button type="button" class="md-tab active" data-tab="write">Write</button>
+              <button type="button" class="md-tab" data-tab="preview">Preview</button>
+            </div>
+            <textarea id="edit-desc" rows="6" class="md-textarea"></textarea>
+            <div class="md-preview todo-desc" hidden></div>
+          </div>
+          <p class="md-hint">Markdown supported — <code>**bold**</code>, <code>*italic*</code>, <code>`code`</code>, <code>- [ ] checklist</code>. Tab to indent lists.</p>
+        </div>
+        <div class="form-row-fields">
+          <div class="form-group">
+            <label for="edit-priority">Priority</label>
+            <select id="edit-priority">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-status">Status</label>
+            <select id="edit-status">
+              <option value="pending">Pending</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-due">Due date</label>
+            <input type="date" id="edit-due">
+          </div>
+          <div class="form-group">
+            <label for="edit-due-time">Time</label>
+            <input type="time" id="edit-due-time">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Wishlist item modal -->
+  <div id="wish-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="wish-modal-title">Add Item</h2>
+        <button class="modal-close" id="wish-modal-close">&times;</button>
+      </div>
+      <form id="wish-item-form">
+        <input type="hidden" id="wish-item-id">
+        <input type="hidden" id="wish-item-cat-id">
+        <div class="form-group">
+          <label for="wish-item-name">Item name</label>
+          <input type="text" id="wish-item-name" placeholder="e.g. Coffee machine" required>
+        </div>
+        <div class="form-group">
+          <label for="wish-item-desc">Description</label>
+          <textarea id="wish-item-desc" rows="3" placeholder="Add notes…"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="wish-item-url">Product link</label>
+          <input type="text" id="wish-item-url" placeholder="https://…">
+        </div>
+        <div class="form-group">
+          <label for="wish-item-price">Price (€)</label>
+          <input type="number" id="wish-item-price" min="0" step="0.01" inputmode="decimal" placeholder="Optional">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="wish-modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/marked.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
