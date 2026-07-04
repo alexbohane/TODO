@@ -17,3 +17,10 @@ TodoApp.app/
 
 # Local tool config
 .claude/
+
+# Secrets — Supabase keys / DB connection string
+.env
+.env.*
+
+# Personal data exports (Supabase seed generated from todos.db)
+*.local.sql

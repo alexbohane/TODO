@@ -270,6 +270,10 @@ header h1 {
 /* ── Inputs ────────────────────────────────────────────────────────────── */
 input[type="text"],
 input[type="date"],
+input[type="time"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
 textarea,
 select {
   width: 100%;
@@ -1372,4 +1376,52 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   padding: 20px;
   font-size: 0.88rem;
   font-style: italic;
+}
+
+/* ── Login screen ────────────────────────────────────────────────────────── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* our display:flex would otherwise defeat the hidden attribute */
+.login-screen[hidden] {
+  display: none;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px 28px;
+}
+
+.login-card h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.login-error {
+  color: var(--danger);
+  font-size: 0.84rem;
+  margin: -6px 0 10px;
 }

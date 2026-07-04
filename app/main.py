@@ -17,7 +17,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Todo App", version="0.1.0")
 
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+STATIC_DIR = Path(__file__).resolve().parent.parent / "docs"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

@@ -1,6 +1,4 @@
-const API = "/todos";
-const WISH_CAT_API = "/wishlist/categories";
-const WISH_ITEM_API = "/wishlist/items";
+const sb = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
 
 // ── State ─────────────────────────────────────────────────────────────────
 let currentSort = "newest";
@@ -45,19 +43,55 @@ const editMdEditor = editModal.querySelector(".md-editor");
 const wishModal    = document.getElementById("wish-modal");
 const wishItemForm = document.getElementById("wish-item-form");
 
-// ── API helpers ───────────────────────────────────────────────────────────
-async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...opts,
-  });
-  if (res.status === 204) return null;
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || res.statusText);
-  }
-  return res.json();
+// ── Data helper ───────────────────────────────────────────────────────────
+async function db(query) {
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return data;
 }
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+const loginScreen  = document.getElementById("login-screen");
+const appContainer = document.querySelector(".container");
+
+function showLogin() {
+  loginScreen.hidden = false;
+  appContainer.hidden = true;
+}
+
+async function showApp() {
+  loginScreen.hidden = true;
+  appContainer.hidden = false;
+  await loadTodos();
+}
+
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await showApp();
+  else showLogin();
+}
+
+document.getElementById("login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById("login-error");
+  errEl.hidden = true;
+  const { error } = await sb.auth.signInWithPassword({
+    email: document.getElementById("login-email").value.trim(),
+    password: document.getElementById("login-password").value,
+  });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.hidden = false;
+    return;
+  }
+  document.getElementById("login-form").reset();
+  await showApp();
+});
+
+document.getElementById("signout-btn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  showLogin();
+});
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 function switchTab(name) {
@@ -169,7 +203,7 @@ function renderDesc(raw) {
 }
 
 async function loadTodos() {
-  const all = await api(API);
+  const all = await db(sb.from("todos").select("*"));
   todoCache = new Map(all.map((t) => [t.id, t]));
 
   const pending = all.filter((t) => t.status !== "done");
@@ -213,15 +247,12 @@ async function loadTodos() {
 
 // ── Todo: actions ─────────────────────────────────────────────────────────
 async function toggleDone(id, currentlyDone) {
-  await api(`${API}/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: currentlyDone ? "pending" : "done" }),
-  });
+  await db(sb.from("todos").update({ status: currentlyDone ? "pending" : "done" }).eq("id", id));
   await loadTodos();
 }
 
 async function deleteTodo(id) {
-  await api(`${API}/${id}`, { method: "DELETE" });
+  await db(sb.from("todos").delete().eq("id", id));
   await loadTodos();
 }
 
@@ -243,10 +274,9 @@ async function toggleChecklistBox(itemEl, checkbox) {
   const updatedDesc = toggleTaskInMarkdown(todo.description, Number(checkbox.dataset.checkIndex));
   if (updatedDesc === todo.description) return;
 
-  const updated = await api(`${API}/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ description: updatedDesc }),
-  });
+  const updated = await db(
+    sb.from("todos").update({ description: updatedDesc }).eq("id", id).select().single()
+  );
   todoCache.set(id, updated);
 
   // Re-render just this item so the expanded state survives
@@ -256,17 +286,17 @@ async function toggleChecklistBox(itemEl, checkbox) {
 }
 
 function openEdit(id) {
-  api(`${API}/${id}`).then((todo) => {
-    editId.value       = todo.id;
-    editTitle.value    = todo.title;
-    editDesc.value     = todo.description || "";
-    editPriority.value = todo.priority;
-    editStatus.value   = todo.status;
-    editDue.value      = todo.due_date || "";
-    editDueTime.value  = todo.due_time ? todo.due_time.slice(0, 5) : "";
-    editMdEditor.resetTabs();
-    editModal.classList.add("open");
-  });
+  const todo = todoCache.get(Number(id));
+  if (!todo) return;
+  editId.value       = todo.id;
+  editTitle.value    = todo.title;
+  editDesc.value     = todo.description || "";
+  editPriority.value = todo.priority;
+  editStatus.value   = todo.status;
+  editDue.value      = todo.due_date || "";
+  editDueTime.value  = todo.due_time ? todo.due_time.slice(0, 5) : "";
+  editMdEditor.resetTabs();
+  editModal.classList.add("open");
 }
 
 function closeModal() {
@@ -422,7 +452,7 @@ addForm.addEventListener("submit", async (e) => {
     if (dueTime) body.due_time = dueTime;
   }
 
-  await api(API, { method: "POST", body: JSON.stringify(body) });
+  await db(sb.from("todos").insert(body));
 
   addForm.reset();
   document.getElementById("priority-input").value = "medium";
@@ -510,7 +540,7 @@ editForm.addEventListener("submit", async (e) => {
     due_date:    editDue.value || null,
     due_time:    (editDue.value && editDueTime.value) ? editDueTime.value : null,
   };
-  await api(`${API}/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+  await db(sb.from("todos").update(body).eq("id", id));
   closeModal();
   await loadTodos();
 });
@@ -530,8 +560,8 @@ document.addEventListener("keydown", (e) => {
 
 async function loadWishlist() {
   [wishCategories, wishItems] = await Promise.all([
-    api(WISH_CAT_API),
-    api(WISH_ITEM_API),
+    db(sb.from("wishlist_categories").select("*").order("created_at")),
+    db(sb.from("wishlist_items").select("*").order("created_at")),
   ]);
   renderWishlist();
 }
@@ -637,7 +667,7 @@ document.getElementById("add-category-form").addEventListener("submit", async (e
   e.preventDefault();
   const name = document.getElementById("category-input").value.trim();
   if (!name) return;
-  await api(WISH_CAT_API, { method: "POST", body: JSON.stringify({ name }) });
+  await db(sb.from("wishlist_categories").insert({ name }));
   document.getElementById("category-input").value = "";
   await loadWishlist();
 });
@@ -662,7 +692,8 @@ document.getElementById("wishlist-categories").addEventListener("click", async (
       ? `Delete "${cat.name}" and its ${itemCount} item${itemCount > 1 ? "s" : ""}?`
       : `Delete category "${cat.name}"?`;
     if (!confirm(msg)) return;
-    await api(`${WISH_CAT_API}/${catId}`, { method: "DELETE" });
+    // items go with it via ON DELETE CASCADE
+    await db(sb.from("wishlist_categories").delete().eq("id", catId));
     await loadWishlist();
     return;
   }
@@ -678,10 +709,7 @@ document.getElementById("wishlist-categories").addEventListener("click", async (
 
   if (action === "toggle-purchased") {
     const isPurchased = actionEl.classList.contains("checked");
-    await api(`${WISH_ITEM_API}/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ purchased: !isPurchased }),
-    });
+    await db(sb.from("wishlist_items").update({ purchased: !isPurchased }).eq("id", id));
     await loadWishlist();
     return;
   }
@@ -693,7 +721,7 @@ document.getElementById("wishlist-categories").addEventListener("click", async (
   }
 
   if (action === "delete-item") {
-    await api(`${WISH_ITEM_API}/${id}`, { method: "DELETE" });
+    await db(sb.from("wishlist_items").delete().eq("id", id));
     await loadWishlist();
     return;
   }
@@ -730,12 +758,9 @@ wishItemForm.addEventListener("submit", async (e) => {
   };
 
   if (id) {
-    await api(`${WISH_ITEM_API}/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+    await db(sb.from("wishlist_items").update(body).eq("id", id));
   } else {
-    await api(WISH_ITEM_API, {
-      method: "POST",
-      body: JSON.stringify({ ...body, category_id: parseInt(catId) }),
-    });
+    await db(sb.from("wishlist_items").insert({ ...body, category_id: parseInt(catId) }));
   }
 
   closeWishModal();
@@ -787,7 +812,7 @@ todoTab.addEventListener("dragend", () => {
     if (!dragTodoId) return;
     const id = dragTodoId;
     dragTodoId = null;
-    await api(`${API}/${id}`, { method: "PATCH", body: JSON.stringify({ priority }) });
+    await db(sb.from("todos").update({ priority }).eq("id", id));
     await loadTodos();
   });
 });
@@ -841,11 +866,11 @@ wishCatsContainer.addEventListener("drop", async (e) => {
   if (newCatId === parseInt(dragWishCat)) return;
   const id = dragWishId;
   dragWishId = null;
-  await api(`${WISH_ITEM_API}/${id}`, { method: "PATCH", body: JSON.stringify({ category_id: newCatId }) });
+  await db(sb.from("wishlist_items").update({ category_id: newCatId }).eq("id", id));
   await loadWishlist();
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────
 attachMarkdownEditing(document.getElementById("desc-input"));
 setupMdEditor(editMdEditor);
-loadTodos();
+initAuth();
