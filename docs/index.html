@@ -6,6 +6,14 @@
   <title>Todo App</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script>
+    // Two icon shapes: Mac dock wants transparent margins, iOS masks its own
+    // corners and paints transparency white — so iOS gets a full-bleed icon.
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) {
+      document.querySelector('link[rel="apple-touch-icon"]').href = "apple-touch-icon-ios.png";
+    }
+  </script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
