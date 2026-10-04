@@ -1,5 +1,5 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, openModal, closeModal as closeOverlay, newItemTracker } from "./ui.js";
+import { escapeHtml, openModal, closeModal as closeOverlay, newItemTracker, autoGrow, makeGrowing } from "./ui.js";
 import { renderDesc, attachMarkdownEditing } from "./markdown.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ const emptyState  = document.getElementById("empty-state");
 
 const addForm    = document.getElementById("add-form");
 const titleInput = document.getElementById("title-input");
+const descInput  = document.getElementById("desc-input");
 
 const editModal    = document.getElementById("edit-modal");
 const editForm     = document.getElementById("edit-form");
@@ -98,8 +99,8 @@ function renderTodo(todo) {
       <div class="todo-content">
         <div class="todo-title">${escapeHtml(todo.title)}</div>
         ${dueChip}
-        <button class="btn-icon btn-inline-edit" data-action="edit" title="Edit">✎</button>
       </div>
+      <button class="btn-icon btn-inline-edit" data-action="edit" title="Edit">✎</button>
       <div class="todo-actions">
         <button class="btn-icon danger" data-action="delete" title="Delete">✕</button>
       </div>
@@ -221,6 +222,8 @@ function openEdit(id) {
   editDue.value      = todo.due_date || "";
   editDueTime.value  = todo.due_time ? todo.due_time.slice(0, 5) : "";
   openModal(editModal);
+  autoGrow(editDesc);
+  editDesc.scrollTop = 0;
 }
 
 function closeModal() {
@@ -287,7 +290,7 @@ addForm.addEventListener("submit", async (e) => {
   }
 
   const body = { title };
-  const desc = document.getElementById("desc-input").value.trim();
+  const desc = descInput.value.trim();
   if (desc) body.description = desc;
   const priority = document.getElementById("priority-input").value;
   if (priority !== "medium") body.priority = priority;
@@ -301,6 +304,7 @@ addForm.addEventListener("submit", async (e) => {
   await db(sb.from("todos").insert(body));
 
   addForm.reset();
+  autoGrow(descInput);
   document.getElementById("priority-input").value = "medium";
   document.querySelectorAll(".prio-dot-btn").forEach((b) => b.classList.remove("selected"));
   document.querySelector(".prio-dot-btn.medium").classList.add("selected");
@@ -403,11 +407,8 @@ todoTab.addEventListener("dragend", () => {
   });
 });
 
-// ── Init ──────────────────────────────────────────────────────────────────
-attachMarkdownEditing(document.getElementById("desc-input"));
-attachMarkdownEditing(editDesc);
-
-// Keep the caret in view while typing at the end of a long description
-editDesc.addEventListener("input", () => {
-  if (editDesc.selectionEnd === editDesc.value.length) editDesc.scrollTop = editDesc.scrollHeight;
-});
+// ── Description boxes ─────────────────────────────────────────────────────
+for (const textarea of [descInput, editDesc]) {
+  attachMarkdownEditing(textarea);
+  makeGrowing(textarea);
+}

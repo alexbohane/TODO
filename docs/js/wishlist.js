@@ -1,5 +1,5 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker } from "./ui.js";
+import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker, autoGrow, makeGrowing } from "./ui.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 let wishCategories = [];
@@ -9,6 +9,9 @@ const trackItems = newItemTracker();
 const wishModal         = document.getElementById("wish-modal");
 const wishItemForm      = document.getElementById("wish-item-form");
 const wishCatsContainer = document.getElementById("wishlist-categories");
+const wishItemDesc      = document.getElementById("wish-item-desc");
+
+makeGrowing(wishItemDesc);
 
 // ── Render ────────────────────────────────────────────────────────────────
 export async function loadWishlist() {
@@ -94,8 +97,8 @@ function renderWishItem(item) {
       <div class="wishlist-content">
         <div class="wishlist-name">${escapeHtml(item.name)}</div>
         ${item.price != null ? `<span class="wishlist-price">${priceFmt.format(item.price)}</span>` : ""}
-        <button class="btn-icon btn-inline-edit" data-action="edit-item" title="Edit">✎</button>
       </div>
+      <button class="btn-icon btn-inline-edit" data-action="edit-item" title="Edit">✎</button>
       <div class="wishlist-actions">
         <button class="btn-icon danger" data-action="delete-item" title="Delete">✕</button>
       </div>
@@ -177,11 +180,13 @@ function openWishModal(item, catId) {
   document.getElementById("wish-item-id").value    = item ? item.id : "";
   document.getElementById("wish-item-cat-id").value = catId;
   document.getElementById("wish-item-name").value  = item ? item.name : "";
-  document.getElementById("wish-item-desc").value  = item ? (item.description || "") : "";
+  wishItemDesc.value = item ? (item.description || "") : "";
   document.getElementById("wish-item-url").value   = item ? (item.url || "") : "";
   document.getElementById("wish-item-price").value = item && item.price != null ? item.price : "";
   document.getElementById("wish-modal-title").textContent = item ? "Edit Item" : "Add Item";
   openModal(wishModal);
+  autoGrow(wishItemDesc);
+  wishItemDesc.scrollTop = 0;
   setTimeout(() => document.getElementById("wish-item-name").focus(), 50);
 }
 
@@ -196,7 +201,7 @@ wishItemForm.addEventListener("submit", async (e) => {
   const rawPrice = document.getElementById("wish-item-price").value.trim();
   const body  = {
     name:        document.getElementById("wish-item-name").value.trim(),
-    description: document.getElementById("wish-item-desc").value.trim() || null,
+    description: wishItemDesc.value.trim() || null,
     url:         document.getElementById("wish-item-url").value.trim() || null,
     price:       rawPrice === "" || isNaN(parseFloat(rawPrice)) ? null : parseFloat(rawPrice),
   };

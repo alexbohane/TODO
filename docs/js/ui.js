@@ -69,6 +69,23 @@ if (vv) {
   syncViewport();
 }
 
+// ── Growing text boxes ────────────────────────────────────────────────────
+// Description/notes boxes grow a line at a time to fit their text; a
+// max-height in CSS caps them (.add-desc 4 lines, .modal-desc 10), after
+// which they scroll and keep the line being typed in view.
+export function autoGrow(textarea) {
+  const borders = textarea.offsetHeight - textarea.clientHeight;
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight + borders}px`;
+}
+
+export function makeGrowing(textarea) {
+  textarea.addEventListener("input", () => {
+    autoGrow(textarea);
+    if (textarea.selectionEnd === textarea.value.length) textarea.scrollTop = textarea.scrollHeight;
+  });
+}
+
 // ── List item entry animation ─────────────────────────────────────────────
 // Only items that weren't in the previous render slide in. Animating every
 // item on each re-render or tab switch made done/ticked items flash.

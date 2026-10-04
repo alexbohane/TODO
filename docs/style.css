@@ -170,7 +170,7 @@ header h1 {
 }
 
 .add-form.open .add-extras {
-  max-height: 140px;
+  max-height: 240px; /* room for 4 lines of notes + the options row */
   opacity: 1;
   margin-top: 8px;
   padding-top: 10px;
@@ -188,6 +188,10 @@ header h1 {
   color: var(--text);
   resize: none;
   line-height: 1.5;
+  /* Grows line by line (see todos.js) up to 4 lines, then scrolls */
+  max-height: 6em;
+  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .add-desc:focus {
@@ -641,7 +645,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px 6px;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   cursor: pointer;
 }
@@ -901,8 +905,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   transition: opacity var(--transition);
 }
 
+/* Sits right after the name row (outside it, so it never wraps onto a line
+   of its own); the auto margin pushes the actions to the far right */
 .btn-inline-edit {
   flex-shrink: 0;
+  margin-left: -6px;
+  margin-right: auto;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition);
@@ -961,8 +969,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   width: 90%;
   max-width: 560px;
   max-height: calc(100% - 32px);
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   /* Scrolling a field into view keeps it clear of the sticky Save bar */
   scroll-padding-bottom: 96px;
   box-shadow: var(--shadow-lg);
@@ -1024,13 +1034,15 @@ body.modal-open {
   background: var(--surface);
 }
 
-/* ── Edit description ──────────────────────────────────────────────────── */
-/* Grows with the visible area (shrinks when the keyboard opens) */
-.edit-desc {
+/* ── Modal description boxes (todo, wishlist item, subscription) ───────── */
+/* Grow line by line (makeGrowing in ui.js) up to 10 lines, then scroll.
+   10 lines + 10px top/bottom padding + 1px borders. */
+.modal-desc {
   display: block;
-  height: clamp(160px, calc(var(--vvh, 100vh) * 0.5), 420px);
   line-height: 1.5;
-  resize: vertical;
+  max-height: calc(15em + 22px);
+  overflow-y: auto;
+  resize: none;
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
@@ -1039,6 +1051,7 @@ body.modal-open {
   header h1 { font-size: 1.5rem; }
   .form-row-fields { flex-direction: column; }
   .modal { width: calc(100% - 24px); padding: 20px; }
+  .add-date { flex: 1 1 0; min-width: 0; }
   .modal-actions { bottom: -20px; margin: 6px -20px -20px; padding: 12px 20px 20px; }
 }
 
@@ -1252,7 +1265,7 @@ body.modal-open {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px 6px;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   cursor: pointer;
 }

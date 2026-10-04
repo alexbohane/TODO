@@ -1,5 +1,5 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker } from "./ui.js";
+import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker, autoGrow, makeGrowing } from "./ui.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 let subs = [];
@@ -7,6 +7,9 @@ const trackSubs = newItemTracker();
 
 const subModal = document.getElementById("sub-modal");
 const subForm  = document.getElementById("sub-form");
+const subNotes = document.getElementById("sub-notes");
+
+makeGrowing(subNotes);
 
 const CURRENCY_SYMBOLS = { EUR: "€", GBP: "£", USD: "$" };
 
@@ -72,8 +75,8 @@ function renderSub(sub) {
         ${sub.cycle === "yearly" ? '<span class="sub-badge">yearly</span>' : ""}
         ${sub.paid_by_me ? "" : '<span class="sub-badge covered-badge">covered</span>'}
         <span class="wishlist-price">${priceText}</span>
-        <button class="btn-icon btn-inline-edit" data-action="edit-sub" title="Edit">✎</button>
       </div>
+      <button class="btn-icon btn-inline-edit" data-action="edit-sub" title="Edit">✎</button>
       <div class="wishlist-actions">
         <button class="btn-icon danger" data-action="delete-sub" title="Delete">✕</button>
       </div>
@@ -133,9 +136,11 @@ function openSubModal(sub, category) {
   document.getElementById("sub-cycle").value    = sub ? sub.cycle : "monthly";
   document.getElementById("sub-category").value = sub ? sub.category : category;
   document.getElementById("sub-covered").checked = sub ? !sub.paid_by_me : false;
-  document.getElementById("sub-notes").value    = sub ? (sub.notes || "") : "";
+  subNotes.value = sub ? (sub.notes || "") : "";
   document.getElementById("sub-modal-title").textContent = sub ? "Edit Subscription" : "Add Subscription";
   openModal(subModal);
+  autoGrow(subNotes);
+  subNotes.scrollTop = 0;
   setTimeout(() => document.getElementById("sub-name").focus(), 50);
 }
 
@@ -187,7 +192,7 @@ subForm.addEventListener("submit", async (e) => {
     cycle:      document.getElementById("sub-cycle").value,
     category:   document.getElementById("sub-category").value,
     paid_by_me: !document.getElementById("sub-covered").checked,
-    notes:      document.getElementById("sub-notes").value.trim() || null,
+    notes:      subNotes.value.trim() || null,
   };
 
   const id = document.getElementById("sub-id").value;
