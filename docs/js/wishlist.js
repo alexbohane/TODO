@@ -1,5 +1,9 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker, autoGrow, makeGrowing } from "./ui.js";
+import {
+  escapeHtml, priceFmt, openModal, closeModal, newItemTracker, autoGrow, makeGrowing,
+  expandOnFocus, openItemMenu, MENU_ICON, flagInvalid,
+} from "./ui.js";
+import { loadFx, toEUR, formatAmount, parseAmount } from "./money.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 let wishCategories = [];
@@ -18,6 +22,7 @@ export async function loadWishlist() {
   [wishCategories, wishItems] = await Promise.all([
     db(sb.from("wishlist_categories").select("*").order("created_at")),
     db(sb.from("wishlist_items").select("*").order("created_at")),
+    loadFx(),
   ]);
   renderWishlist();
 }
@@ -25,6 +30,7 @@ export async function loadWishlist() {
 function renderWishlist() {
   const empty = document.getElementById("wishlist-empty");
 
+  renderCategoryPicker();
   wishCatsContainer.innerHTML = "";
 
   if (wishCategories.length === 0) {
@@ -47,15 +53,16 @@ function renderCategory(cat, items, isNew) {
 
   // Unpurchased first; purchased sink to the bottom
   const ordered = [...items.filter((i) => !i.purchased), ...items.filter((i) => i.purchased)];
-  const total = items
-    .filter((i) => !i.purchased && i.price != null)
-    .reduce((sum, i) => sum + i.price, 0);
+  // Still to buy, in EUR; "≈" when other currencies were converted
+  const toBuy = items.filter((i) => !i.purchased && i.price != null);
+  const total = toBuy.reduce((sum, i) => sum + toEUR(i.price, i.currency), 0);
+  const converted = toBuy.some((i) => (i.currency || "EUR") !== "EUR");
 
   section.innerHTML = `
     <div class="section-header">
       <h2 class="section-title">${escapeHtml(cat.name)}</h2>
       <span class="section-count">${items.length || ""}</span>
-      ${total > 0 ? `<span class="section-total">${priceFmt.format(total)}</span>` : ""}
+      ${total > 0 ? `<span class="section-total">${converted ? "≈ " : ""}${priceFmt.format(total)}</span>` : ""}
       <button class="category-add-btn" data-action="add-item" data-cat-id="${cat.id}">+ Add</button>
       <button class="btn-icon danger" data-action="delete-category" data-cat-id="${cat.id}" title="Delete category">✕</button>
     </div>
@@ -96,12 +103,9 @@ function renderWishItem(item) {
     <div class="wishlist-header">
       <div class="wishlist-content">
         <div class="wishlist-name">${escapeHtml(item.name)}</div>
-        ${item.price != null ? `<span class="wishlist-price">${priceFmt.format(item.price)}</span>` : ""}
+        ${item.price != null ? `<span class="wishlist-price">${formatAmount(item.price, item.currency)}</span>` : ""}
       </div>
-      <button class="btn-icon btn-inline-edit" data-action="edit-item" title="Edit">✎</button>
-      <div class="wishlist-actions">
-        <button class="btn-icon danger" data-action="delete-item" title="Delete">✕</button>
-      </div>
+      <button class="btn-icon item-menu-btn" data-action="menu" title="More" aria-haspopup="menu" aria-expanded="false">${MENU_ICON}</button>
       <div class="wish-check${item.purchased ? " checked" : ""}" data-action="toggle-purchased"></div>
     </div>
     ${detailsHTML ? `<div class="wishlist-details">${detailsHTML}</div>` : ""}
@@ -110,15 +114,84 @@ function renderWishItem(item) {
   return li;
 }
 
-// ── Events ────────────────────────────────────────────────────────────────
-document.getElementById("add-category-form").addEventListener("submit", async (e) => {
+// Optional price: blank is fine, anything else must be a valid amount
+function readPrice(field) {
+  const price = parseAmount(field.value);
+  if (Number.isNaN(price)) {
+    flagInvalid(field, "Enter a price as a number, e.g. 12.50");
+    return undefined;
+  }
+  return price;
+}
+
+// ── Add form ──────────────────────────────────────────────────────────────
+const wishAddForm      = document.getElementById("wish-add-form");
+const wishNameInput    = document.getElementById("wish-name-input");
+const wishDescInput    = document.getElementById("wish-desc-input");
+const wishPriceInput   = document.getElementById("wish-price-input");
+const wishCurrencyInput = document.getElementById("wish-currency-input");
+const wishUrlInput     = document.getElementById("wish-url-input");
+const categoryPicker   = document.getElementById("category-picker");
+const newCategoryInput = document.getElementById("new-category-input");
+
+// The category new items go into: a category id, or "new" to create one
+let pickedCategory = null;
+
+function renderCategoryPicker() {
+  // Keep the pick while it exists; otherwise the first category, or "new"
+  // when there are none yet
+  if (pickedCategory !== "new" && !wishCategories.some((c) => c.id === pickedCategory)) {
+    pickedCategory = wishCategories[0]?.id ?? "new";
+  }
+  const chip = (id, label) =>
+    `<button type="button" class="cat-chip${id === pickedCategory ? " selected" : ""}" data-cat-id="${id}">${label}</button>`;
+  categoryPicker.innerHTML =
+    wishCategories.map((c) => chip(c.id, escapeHtml(c.name))).join("") + chip("new", "+ New");
+  newCategoryInput.hidden = pickedCategory !== "new";
+}
+
+categoryPicker.addEventListener("click", (e) => {
+  const chip = e.target.closest(".cat-chip");
+  if (!chip) return;
+  pickedCategory = chip.dataset.catId === "new" ? "new" : Number(chip.dataset.catId);
+  renderCategoryPicker();
+  if (pickedCategory === "new") newCategoryInput.focus();
+});
+
+wishAddForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const name = document.getElementById("category-input").value.trim();
-  if (!name) return;
-  await db(sb.from("wishlist_categories").insert({ name }));
-  document.getElementById("category-input").value = "";
+  const name = wishNameInput.value.trim();
+  if (!name) return wishNameInput.focus();
+  const price = readPrice(wishPriceInput);
+  if (price === undefined) return;
+
+  if (pickedCategory === "new") {
+    const catName = newCategoryInput.value.trim();
+    if (!catName) return newCategoryInput.focus();
+    const cat = await db(sb.from("wishlist_categories").insert({ name: catName }).select().single());
+    pickedCategory = cat.id; // also where the next item goes
+  }
+
+  await db(sb.from("wishlist_items").insert({
+    name,
+    description: wishDescInput.value.trim() || null,
+    url:         wishUrlInput.value.trim() || null,
+    price,
+    currency:    wishCurrencyInput.value,
+    category_id: pickedCategory,
+  }));
+
+  wishAddForm.reset();
+  autoGrow(wishDescInput);
+  wishAddForm.classList.remove("open");
+  wishNameInput.focus();
   await loadWishlist();
 });
+
+expandOnFocus(wishAddForm, wishNameInput);
+makeGrowing(wishDescInput);
+
+// ── List clicks ───────────────────────────────────────────────────────────
 
 wishCatsContainer.addEventListener("click", async (e) => {
   const actionEl = e.target.closest("[data-action]");
@@ -162,16 +235,17 @@ wishCatsContainer.addEventListener("click", async (e) => {
     return;
   }
 
-  if (action === "edit-item") {
-    const itemData = wishItems.find((i) => i.id === id);
-    if (itemData) openWishModal(itemData, itemData.category_id);
-    return;
-  }
-
-  if (action === "delete-item") {
-    await db(sb.from("wishlist_items").delete().eq("id", id));
-    await loadWishlist();
-    return;
+  if (action === "menu") {
+    openItemMenu(actionEl, {
+      onEdit: () => {
+        const itemData = wishItems.find((i) => i.id === id);
+        if (itemData) openWishModal(itemData, itemData.category_id);
+      },
+      onDelete: async () => {
+        await db(sb.from("wishlist_items").delete().eq("id", id));
+        await loadWishlist();
+      },
+    });
   }
 });
 
@@ -183,6 +257,7 @@ function openWishModal(item, catId) {
   wishItemDesc.value = item ? (item.description || "") : "";
   document.getElementById("wish-item-url").value   = item ? (item.url || "") : "";
   document.getElementById("wish-item-price").value = item && item.price != null ? item.price : "";
+  document.getElementById("wish-item-currency").value = item?.currency || "EUR";
   document.getElementById("wish-modal-title").textContent = item ? "Edit Item" : "Add Item";
   openModal(wishModal);
   autoGrow(wishItemDesc);
@@ -198,12 +273,14 @@ wishItemForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const id    = document.getElementById("wish-item-id").value;
   const catId = document.getElementById("wish-item-cat-id").value;
-  const rawPrice = document.getElementById("wish-item-price").value.trim();
+  const price = readPrice(document.getElementById("wish-item-price"));
+  if (price === undefined) return;
   const body  = {
     name:        document.getElementById("wish-item-name").value.trim(),
     description: wishItemDesc.value.trim() || null,
     url:         document.getElementById("wish-item-url").value.trim() || null,
-    price:       rawPrice === "" || isNaN(parseFloat(rawPrice)) ? null : parseFloat(rawPrice),
+    price,
+    currency:    document.getElementById("wish-item-currency").value,
   };
 
   if (id) {

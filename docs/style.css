@@ -216,23 +216,60 @@ header h1 {
   background: var(--border);
 }
 
-.add-date {
-  padding: 4px 8px;
-  font-size: 0.78rem;
-  font-family: inherit;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  width: auto;
-  transition: border-color var(--transition);
+/* Add-form fields use the standard input look; these only size them */
+.add-price {
+  flex: 0 0 96px;
 }
 
-.add-date:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: none;
+.add-link {
+  flex: 1;
+  min-width: 0;
 }
+
+.add-currency {
+  flex: 0 0 96px;
+}
+
+.date-field.add-field {
+  flex: 1 1 0;
+}
+
+/* Wishlist add form also has the category picker, so needs more room */
+#wish-add-form.open .add-extras {
+  max-height: 400px;
+}
+
+.category-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cat-chip {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: inherit;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.cat-chip:hover {
+  color: var(--text);
+}
+
+.cat-chip.selected {
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
 
 /* Priority picker */
 .priority-picker {
@@ -297,6 +334,47 @@ select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Set by flagInvalid() in ui.js, cleared on the next edit */
+input.invalid,
+input.invalid:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+/* ── Date/time fields ── */
+.date-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+/* iOS only: it ignores width:100% on date/time inputs (they overflowed the
+   modal) and shows them blank when empty, so restyle them and draw the
+   "dd/mm/yyyy" / "--:--" hint from data-placeholder (see ui.js) */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    min-height: 42px;
+  }
+
+  input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+
+  .date-field.empty::before {
+    content: attr(data-placeholder);
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
 }
 
 select {
@@ -581,7 +659,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 16px;
+  padding: 8px 16px;
 }
 
 /* Only on items new since the last render (see newItemTracker in ui.js).
@@ -645,7 +723,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px 6px;
-  flex: 0 1 auto;
+  flex: 1;
   min-width: 0;
   cursor: pointer;
 }
@@ -895,34 +973,67 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-color: rgba(193, 71, 58, 0.35);
 }
 
-/* Actions (always in layout, invisible until expanded) */
-.todo-actions {
-  display: flex;
-  gap: 2px;
+/* ⋯ button: right side of every item (left of the checkbox), opens the
+   shared Edit/Delete menu. Always visible, so it works without hover. */
+.item-menu-btn {
   flex-shrink: 0;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition);
+  width: 28px;
+  height: 28px;
+  margin-block: -4px;
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity var(--transition), background var(--transition);
 }
 
-/* Sits right after the name row (outside it, so it never wraps onto a line
-   of its own); the auto margin pushes the actions to the far right */
-.btn-inline-edit {
-  flex-shrink: 0;
-  margin-left: -6px;
-  margin-right: auto;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition);
-}
-
-.todo-item:hover .todo-actions,
-.todo-item:hover .btn-inline-edit {
+.item-menu-btn:hover,
+.item-menu-btn.active {
   opacity: 1;
-  pointer-events: auto;
 }
 
-/* Detailed view — show all meta and actions always */
+.item-menu-btn.active {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.item-menu {
+  position: fixed;
+  z-index: 1100;
+  min-width: 140px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  animation: dropIn 0.15s ease;
+}
+
+.item-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.item-menu button:hover {
+  background: var(--bg);
+}
+
+.item-menu button.danger {
+  color: var(--danger);
+}
+
+.item-menu button.danger:hover {
+  background: var(--danger-soft);
+}
+
+/* Detailed view — every item shows its details */
 .todo-list.detailed .todo-details {
   display: block;
 }
@@ -1051,7 +1162,12 @@ body.modal-open {
   header h1 { font-size: 1.5rem; }
   .form-row-fields { flex-direction: column; }
   .modal { width: calc(100% - 24px); padding: 20px; }
-  .add-date { flex: 1 1 0; min-width: 0; }
+  .add-field { flex: 1 1 0; min-width: 0; }
+  .add-price,
+  .add-currency { flex: 0 0 96px; }
+  /* Edit todo: priority on its own row, date + time side by side */
+  .form-row-fields.edit-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .edit-fields .form-group:first-child { grid-column: 1 / -1; }
   .modal-actions { bottom: -20px; margin: 6px -20px -20px; padding: 12px 20px 20px; }
 }
 
@@ -1099,13 +1215,6 @@ body.modal-open {
 .tab-btn:not(.active):hover {
   background: var(--bg);
   color: var(--text);
-}
-
-/* ── Add form simple (no expand animation) ──────────────────────────────── */
-.add-form-simple {
-  margin-bottom: 28px;
-  border: 1px solid transparent;
-  padding: 4px 0;
 }
 
 /*
@@ -1208,7 +1317,7 @@ body.modal-open {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 16px;
+  padding: 8px 16px;
 }
 
 .wishlist-item:hover {
@@ -1265,7 +1374,7 @@ body.modal-open {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px 6px;
-  flex: 0 1 auto;
+  flex: 1;
   min-width: 0;
   cursor: pointer;
 }
@@ -1335,21 +1444,6 @@ body.modal-open {
 
 .wishlist-url-link:hover {
   border-bottom-color: var(--accent);
-}
-
-.wishlist-actions {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--transition);
-}
-
-.wishlist-item:hover .wishlist-actions,
-.wishlist-item:hover .btn-inline-edit {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .wishlist-section-empty {
@@ -1510,7 +1604,7 @@ body.modal-open {
   select,
   .add-input,
   .add-desc,
-  .add-date {
+  .add-field {
     font-size: 16px;
   }
 }

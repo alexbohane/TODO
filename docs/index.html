@@ -72,8 +72,8 @@
               <button type="button" class="prio-dot-btn high" data-prio="high" title="High priority"></button>
             </div>
             <div class="add-divider"></div>
-            <input type="date" id="due-input" class="add-date">
-            <input type="time" id="due-time-input" class="add-date">
+            <span class="date-field add-field"><input type="date" id="due-input"></span>
+            <span class="date-field add-field"><input type="time" id="due-time-input"></span>
           </div>
         </div>
       </form>
@@ -146,18 +146,32 @@
 
     <!-- ── Wishlist panel ── -->
     <div id="tab-wishlist" class="tab-panel" hidden>
-      <!-- Add category -->
-      <form id="add-category-form" class="add-form-simple">
+      <!-- Add item (expands like the todo add form) -->
+      <form id="wish-add-form" class="add-form" novalidate>
         <div class="add-main">
-          <input type="text" id="category-input" class="add-input" placeholder="Add a category" required>
-          <button type="submit" class="add-submit" title="Add category">
+          <input type="text" id="wish-name-input" class="add-input" placeholder="What do you want to buy?" required>
+          <button type="submit" class="add-submit" title="Add">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
+        </div>
+        <div class="add-extras">
+          <textarea id="wish-desc-input" rows="1" class="add-desc" placeholder="Add notes…"></textarea>
+          <div class="add-options">
+            <input type="text" inputmode="decimal" id="wish-price-input" class="add-field add-price" placeholder="Price">
+            <select id="wish-currency-input" class="add-field add-currency" title="Currency">
+              <option value="EUR">€ EUR</option>
+              <option value="GBP">£ GBP</option>
+              <option value="USD">$ USD</option>
+            </select>
+            <input type="text" inputmode="url" id="wish-url-input" class="add-field add-link" placeholder="Link">
+          </div>
+          <div class="category-picker" id="category-picker"></div>
+          <input type="text" id="new-category-input" class="add-field" placeholder="New category name" hidden>
         </div>
       </form>
 
       <div id="wishlist-categories"></div>
-      <p id="wishlist-empty" class="empty-state" hidden>No categories yet — add one above.</p>
+      <p id="wishlist-empty" class="empty-state" hidden>Nothing on your wishlist yet — add something above.</p>
     </div>
 
     <!-- ── Subscriptions panel ── -->
@@ -208,7 +222,7 @@
           <label for="edit-desc">Description</label>
           <textarea id="edit-desc" class="modal-desc" rows="1" placeholder="Add notes…"></textarea>
         </div>
-        <div class="form-row-fields">
+        <div class="form-row-fields edit-fields">
           <div class="form-group">
             <label for="edit-priority">Priority</label>
             <select id="edit-priority">
@@ -218,19 +232,12 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="edit-status">Status</label>
-            <select id="edit-status">
-              <option value="pending">Pending</option>
-              <option value="done">Done</option>
-            </select>
-          </div>
-          <div class="form-group">
             <label for="edit-due">Due date</label>
-            <input type="date" id="edit-due">
+            <span class="date-field"><input type="date" id="edit-due"></span>
           </div>
           <div class="form-group">
             <label for="edit-due-time">Time</label>
-            <input type="time" id="edit-due-time">
+            <span class="date-field"><input type="time" id="edit-due-time"></span>
           </div>
         </div>
         <div class="modal-actions">
@@ -263,9 +270,19 @@
           <label for="wish-item-url">Product link</label>
           <input type="text" id="wish-item-url" placeholder="https://…">
         </div>
-        <div class="form-group">
-          <label for="wish-item-price">Price (€)</label>
-          <input type="number" id="wish-item-price" min="0" step="0.01" inputmode="decimal" placeholder="Optional">
+        <div class="form-row-fields">
+          <div class="form-group">
+            <label for="wish-item-price">Price</label>
+            <input type="text" id="wish-item-price" inputmode="decimal" placeholder="Optional">
+          </div>
+          <div class="form-group">
+            <label for="wish-item-currency">Currency</label>
+            <select id="wish-item-currency">
+              <option value="EUR">€ EUR</option>
+              <option value="GBP">£ GBP</option>
+              <option value="USD">$ USD</option>
+            </select>
+          </div>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="wish-modal-cancel">Cancel</button>
@@ -291,7 +308,7 @@
         <div class="form-row-fields">
           <div class="form-group">
             <label for="sub-price">Price</label>
-            <input type="number" id="sub-price" min="0" step="0.01" inputmode="decimal">
+            <input type="text" id="sub-price" inputmode="decimal">
           </div>
           <div class="form-group">
             <label for="sub-currency">Currency</label>
@@ -332,6 +349,12 @@
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- Shared ⋯ menu for list items, positioned next to the button that opened it -->
+  <div id="item-menu" class="item-menu" role="menu" hidden>
+    <button type="button" role="menuitem" data-choice="edit">Edit</button>
+    <button type="button" role="menuitem" data-choice="delete" class="danger">Delete</button>
   </div>
 
   <div id="toast" class="toast" role="alert" hidden></div>

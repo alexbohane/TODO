@@ -1,5 +1,8 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, openModal, closeModal as closeOverlay, newItemTracker, autoGrow, makeGrowing } from "./ui.js";
+import {
+  escapeHtml, openModal, closeModal as closeOverlay, newItemTracker, autoGrow, makeGrowing,
+  expandOnFocus, openItemMenu, MENU_ICON, syncDateFields,
+} from "./ui.js";
 import { renderDesc, attachMarkdownEditing } from "./markdown.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -36,7 +39,6 @@ const editId       = document.getElementById("edit-id");
 const editTitle    = document.getElementById("edit-title");
 const editDesc     = document.getElementById("edit-desc");
 const editPriority = document.getElementById("edit-priority");
-const editStatus   = document.getElementById("edit-status");
 const editDue      = document.getElementById("edit-due");
 const editDueTime  = document.getElementById("edit-due-time");
 
@@ -100,10 +102,7 @@ function renderTodo(todo) {
         <div class="todo-title">${escapeHtml(todo.title)}</div>
         ${dueChip}
       </div>
-      <button class="btn-icon btn-inline-edit" data-action="edit" title="Edit">✎</button>
-      <div class="todo-actions">
-        <button class="btn-icon danger" data-action="delete" title="Delete">✕</button>
-      </div>
+      <button class="btn-icon item-menu-btn" data-action="menu" title="More" aria-haspopup="menu" aria-expanded="false">${MENU_ICON}</button>
       <div class="todo-checkbox${isDone ? " checked" : ""}" data-action="toggle"></div>
     </div>
     ${hasDetails ? `<div class="todo-details">${detailsHTML}</div>` : ""}
@@ -218,9 +217,9 @@ function openEdit(id) {
   editTitle.value    = todo.title;
   editDesc.value     = todo.description || "";
   editPriority.value = todo.priority;
-  editStatus.value   = todo.status;
   editDue.value      = todo.due_date || "";
   editDueTime.value  = todo.due_time ? todo.due_time.slice(0, 5) : "";
+  syncDateFields();
   openModal(editModal);
   autoGrow(editDesc);
   editDesc.scrollTop = 0;
@@ -241,7 +240,6 @@ editForm.addEventListener("submit", async (e) => {
     title:       editTitle.value.trim(),
     description: editDesc.value.trim() || null,
     priority:    editPriority.value,
-    status:      editStatus.value,
     due_date:    editDue.value || null,
     due_time:    (editDue.value && editDueTime.value) ? editDueTime.value : null,
   };
@@ -267,11 +265,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ── Add form ──────────────────────────────────────────────────────────────
-titleInput.addEventListener("focus", () => addForm.classList.add("open"));
-
-document.addEventListener("click", (e) => {
-  if (!addForm.contains(e.target)) addForm.classList.remove("open");
-});
+expandOnFocus(addForm, titleInput);
 
 document.getElementById("priority-picker").addEventListener("click", (e) => {
   const btn = e.target.closest(".prio-dot-btn");
@@ -305,6 +299,7 @@ addForm.addEventListener("submit", async (e) => {
 
   addForm.reset();
   autoGrow(descInput);
+  syncDateFields();
   document.getElementById("priority-input").value = "medium";
   document.querySelectorAll(".prio-dot-btn").forEach((b) => b.classList.remove("selected"));
   document.querySelector(".prio-dot-btn.medium").classList.add("selected");
@@ -325,8 +320,9 @@ function handleListClick(e) {
     if (action === "link")   return;
     if (action === "check")  toggleChecklistBox(item, actionEl);
     else if (action === "toggle") toggleDone(id, actionEl.classList.contains("checked"));
-    else if (action === "delete") deleteTodo(id);
-    else if (action === "edit")   openEdit(id);
+    else if (action === "menu") {
+      openItemMenu(actionEl, { onEdit: () => openEdit(id), onDelete: () => deleteTodo(id) });
+    }
     return;
   }
 

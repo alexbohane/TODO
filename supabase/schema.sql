@@ -89,3 +89,10 @@ create policy "authenticated full access" on subscriptions
 
 grant select, insert, update, delete on subscriptions to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
+
+-- ── Added 2026-10-05: wishlist item currency ─────────────────────────────────
+-- Run this on its own in the SQL Editor. Existing items become EUR.
+
+alter table wishlist_items
+  add column currency text not null default 'EUR'
+  check (currency in ('EUR', 'GBP', 'USD'));

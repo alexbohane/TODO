@@ -1,5 +1,9 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker, autoGrow, makeGrowing } from "./ui.js";
+import {
+  escapeHtml, priceFmt, openModal, closeModal, newItemTracker, autoGrow, makeGrowing,
+  openItemMenu, MENU_ICON, flagInvalid,
+} from "./ui.js";
+import { CURRENCY_SYMBOLS, loadFx, toEUR, parseAmount } from "./money.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 let subs = [];
@@ -11,35 +15,7 @@ const subNotes = document.getElementById("sub-notes");
 
 makeGrowing(subNotes);
 
-const CURRENCY_SYMBOLS = { EUR: "€", GBP: "£", USD: "$" };
-
 // ── Currency ──────────────────────────────────────────────────────────────
-// EUR-based rates; refreshed daily from the ECB via frankfurter.app,
-// these values are only the offline fallback
-let fxRates = { GBP: 0.85, USD: 1.10 };
-
-async function loadFx() {
-  const today = new Date().toISOString().slice(0, 10);
-  try {
-    const cached = JSON.parse(localStorage.getItem("fxRates") || "null");
-    if (cached && cached.date === today) {
-      fxRates = cached.rates;
-      return;
-    }
-    const res = await fetch("https://api.frankfurter.dev/v1/latest?to=GBP,USD");
-    if (!res.ok) return;
-    const data = await res.json();
-    fxRates = data.rates;
-    localStorage.setItem("fxRates", JSON.stringify({ date: today, rates: fxRates }));
-  } catch (_) {
-    // offline — fallback rates are close enough for a summary line
-  }
-}
-
-function toEUR(amount, currency) {
-  return currency === "EUR" ? amount : amount / fxRates[currency];
-}
-
 function monthlyCost(sub) {
   return sub.cycle === "yearly" ? sub.price / 12 : sub.price;
 }
@@ -76,10 +52,7 @@ function renderSub(sub) {
         ${sub.paid_by_me ? "" : '<span class="sub-badge covered-badge">covered</span>'}
         <span class="wishlist-price">${priceText}</span>
       </div>
-      <button class="btn-icon btn-inline-edit" data-action="edit-sub" title="Edit">✎</button>
-      <div class="wishlist-actions">
-        <button class="btn-icon danger" data-action="delete-sub" title="Delete">✕</button>
-      </div>
+      <button class="btn-icon item-menu-btn" data-action="menu" title="More" aria-haspopup="menu" aria-expanded="false">${MENU_ICON}</button>
     </div>
     ${sub.notes ? `<div class="wishlist-details"><div class="wishlist-desc">${escapeHtml(sub.notes)}</div></div>` : ""}
   `;
@@ -169,21 +142,27 @@ document.getElementById("tab-subs").addEventListener("click", async (e) => {
   if (!item) return;
   const id = Number(item.dataset.id);
 
-  if (action === "edit-sub") {
-    const sub = subs.find((s) => s.id === id);
-    if (sub) openSubModal(sub, sub.category);
-  } else if (action === "delete-sub") {
-    await db(sb.from("subscriptions").delete().eq("id", id));
-    await loadSubs();
+  if (action === "menu") {
+    openItemMenu(actionEl, {
+      onEdit: () => {
+        const sub = subs.find((s) => s.id === id);
+        if (sub) openSubModal(sub, sub.category);
+      },
+      onDelete: async () => {
+        await db(sb.from("subscriptions").delete().eq("id", id));
+        await loadSubs();
+      },
+    });
   }
 });
 
 subForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = document.getElementById("sub-name").value.trim();
-  const price = parseFloat(document.getElementById("sub-price").value);
+  const priceField = document.getElementById("sub-price");
+  const price = parseAmount(priceField.value);
   if (!name) return document.getElementById("sub-name").focus();
-  if (isNaN(price) || price < 0) return document.getElementById("sub-price").focus();
+  if (price === null || isNaN(price)) return flagInvalid(priceField, "Enter a price as a number, e.g. 9.99");
 
   const body = {
     name,
