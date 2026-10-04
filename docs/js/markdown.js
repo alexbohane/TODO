@@ -102,26 +102,3 @@ export function attachMarkdownEditing(textarea) {
     }
   });
 }
-
-// Write/Preview tabbed editor; adds `editor.resetTabs()` to go back to Write
-export function setupMdEditor(editor) {
-  const textarea = editor.querySelector(".md-textarea");
-  const preview  = editor.querySelector(".md-preview");
-  const tabs     = editor.querySelectorAll(".md-tab");
-
-  function showTab(name) {
-    tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
-    const isPreview = name === "preview";
-    if (isPreview) preview.innerHTML = renderDesc(textarea.value);
-    textarea.hidden = isPreview;
-    preview.hidden  = !isPreview;
-    if (!isPreview) textarea.focus();
-  }
-
-  tabs.forEach((tab) => tab.addEventListener("click", () => showTab(tab.dataset.tab)));
-  textarea.addEventListener("input", () => {
-    if (!preview.hidden) preview.innerHTML = renderDesc(textarea.value);
-  });
-  attachMarkdownEditing(textarea);
-  editor.resetTabs = () => showTab("write");
-}

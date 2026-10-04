@@ -1,8 +1,9 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, priceFmt } from "./ui.js";
+import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker } from "./ui.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 let subs = [];
+const trackSubs = newItemTracker();
 
 const subModal = document.getElementById("sub-modal");
 const subForm  = document.getElementById("sub-form");
@@ -85,6 +86,7 @@ function renderSub(sub) {
 function renderSubs() {
   const totals = { necessary: 0, optional: 0 };
   let coveredCount = 0;
+  const isNew = trackSubs(subs.map((s) => s.id));
 
   for (const category of ["necessary", "optional"]) {
     const list  = document.getElementById(`subs-${category}-list`);
@@ -94,7 +96,11 @@ function renderSubs() {
       .sort((a, b) => myMonthlyEUR(b) - myMonthlyEUR(a));
 
     list.innerHTML = "";
-    for (const sub of items) list.appendChild(renderSub(sub));
+    for (const sub of items) {
+      const li = renderSub(sub);
+      if (isNew(sub.id)) li.classList.add("entering");
+      list.appendChild(li);
+    }
     empty.hidden = items.length > 0;
 
     document.getElementById(`subs-${category}-count`).textContent = items.length || "";
@@ -129,12 +135,12 @@ function openSubModal(sub, category) {
   document.getElementById("sub-covered").checked = sub ? !sub.paid_by_me : false;
   document.getElementById("sub-notes").value    = sub ? (sub.notes || "") : "";
   document.getElementById("sub-modal-title").textContent = sub ? "Edit Subscription" : "Add Subscription";
-  subModal.classList.add("open");
+  openModal(subModal);
   setTimeout(() => document.getElementById("sub-name").focus(), 50);
 }
 
 function closeSubModal() {
-  subModal.classList.remove("open");
+  closeModal(subModal);
 }
 
 // ── Events ────────────────────────────────────────────────────────────────

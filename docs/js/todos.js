@@ -1,10 +1,11 @@
 import { sb, db } from "./db.js";
-import { escapeHtml } from "./ui.js";
-import { renderDesc, attachMarkdownEditing, setupMdEditor } from "./markdown.js";
+import { escapeHtml, openModal, closeModal as closeOverlay, newItemTracker } from "./ui.js";
+import { renderDesc, attachMarkdownEditing } from "./markdown.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 let currentSort = "newest";
 let todoCache = new Map();
+const trackTodos = newItemTracker();
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const upcomingList    = document.getElementById("upcoming-list");
@@ -37,7 +38,6 @@ const editPriority = document.getElementById("edit-priority");
 const editStatus   = document.getElementById("edit-status");
 const editDue      = document.getElementById("edit-due");
 const editDueTime  = document.getElementById("edit-due-time");
-const editMdEditor = editModal.querySelector(".md-editor");
 
 export const todoLists = [upcomingList, highList, mediumList, lowList, doneList];
 
@@ -121,6 +121,13 @@ function renderTodo(todo) {
 export async function loadTodos() {
   const all = await db(sb.from("todos").select("*"));
   todoCache = new Map(all.map((t) => [t.id, t]));
+  renderTodos();
+}
+
+// Renders from todoCache, so edits can show immediately before the save lands
+function renderTodos() {
+  const all = [...todoCache.values()];
+  const isNew = trackTodos(all.map((t) => t.id));
 
   const pending = all.filter((t) => t.status !== "done");
   const done    = sortTodos(all.filter((t) => t.status === "done"));
@@ -148,17 +155,18 @@ export async function loadTodos() {
   function fillSection(section, list, count, items) {
     section.hidden = items.length === 0;
     count.textContent = items.length || "";
-    for (const todo of items) list.appendChild(renderTodo(todo));
+    for (const todo of items) {
+      const li = renderTodo(todo);
+      if (isNew(todo.id)) li.classList.add("entering");
+      list.appendChild(li);
+    }
   }
   fillSection(upcomingSection, upcomingList, upcomingCount, upcoming);
   fillSection(highSection,   highList,   highCount,   high);
   fillSection(mediumSection, mediumList, mediumCount, medium);
   fillSection(lowSection,    lowList,    lowCount,    low);
 
-  // Done section
-  doneSection.hidden = done.length === 0;
-  doneCount.textContent = done.length || "";
-  for (const todo of done) doneList.appendChild(renderTodo(todo));
+  fillSection(doneSection, doneList, doneCount, done);
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────
@@ -212,12 +220,11 @@ function openEdit(id) {
   editStatus.value   = todo.status;
   editDue.value      = todo.due_date || "";
   editDueTime.value  = todo.due_time ? todo.due_time.slice(0, 5) : "";
-  editMdEditor.resetTabs();
-  editModal.classList.add("open");
+  openModal(editModal);
 }
 
 function closeModal() {
-  editModal.classList.remove("open");
+  closeOverlay(editModal);
 }
 
 editForm.addEventListener("submit", async (e) => {
@@ -226,7 +233,7 @@ editForm.addEventListener("submit", async (e) => {
     editTitle.focus();
     return;
   }
-  const id = editId.value;
+  const id = Number(editId.value);
   const body = {
     title:       editTitle.value.trim(),
     description: editDesc.value.trim() || null,
@@ -235,9 +242,18 @@ editForm.addEventListener("submit", async (e) => {
     due_date:    editDue.value || null,
     due_time:    (editDue.value && editDueTime.value) ? editDueTime.value : null,
   };
-  await db(sb.from("todos").update(body).eq("id", id));
+
+  // Close and show the edit straight away; the save finishes in the
+  // background. If it fails, reload the real data (the error toast shows).
   closeModal();
-  await loadTodos();
+  todoCache.set(id, { ...todoCache.get(id), ...body });
+  renderTodos();
+  try {
+    await db(sb.from("todos").update(body).eq("id", id));
+  } catch (err) {
+    await loadTodos();
+    throw err;
+  }
 });
 
 document.getElementById("modal-close").addEventListener("click", closeModal);
@@ -389,4 +405,9 @@ todoTab.addEventListener("dragend", () => {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 attachMarkdownEditing(document.getElementById("desc-input"));
-setupMdEditor(editMdEditor);
+attachMarkdownEditing(editDesc);
+
+// Keep the caret in view while typing at the end of a long description
+editDesc.addEventListener("input", () => {
+  if (editDesc.selectionEnd === editDesc.value.length) editDesc.scrollTop = editDesc.scrollHeight;
+});

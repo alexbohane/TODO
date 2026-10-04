@@ -1,9 +1,10 @@
 import { sb, db } from "./db.js";
-import { escapeHtml, priceFmt } from "./ui.js";
+import { escapeHtml, priceFmt, openModal, closeModal, newItemTracker } from "./ui.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 let wishCategories = [];
 let wishItems = [];
+const trackItems = newItemTracker();
 
 const wishModal         = document.getElementById("wish-modal");
 const wishItemForm      = document.getElementById("wish-item-form");
@@ -29,13 +30,14 @@ function renderWishlist() {
   }
   empty.hidden = true;
 
+  const isNew = trackItems(wishItems.map((i) => i.id));
   for (const cat of wishCategories) {
     const items = wishItems.filter((i) => i.category_id === cat.id);
-    wishCatsContainer.appendChild(renderCategory(cat, items));
+    wishCatsContainer.appendChild(renderCategory(cat, items, isNew));
   }
 }
 
-function renderCategory(cat, items) {
+function renderCategory(cat, items, isNew) {
   const section = document.createElement("section");
   section.className = "wishlist-section";
   section.dataset.categoryId = cat.id;
@@ -59,7 +61,11 @@ function renderCategory(cat, items) {
   `;
 
   const list = section.querySelector(".wishlist-list");
-  for (const item of ordered) list.appendChild(renderWishItem(item));
+  for (const item of ordered) {
+    const li = renderWishItem(item);
+    if (isNew(item.id)) li.classList.add("entering");
+    list.appendChild(li);
+  }
 
   return section;
 }
@@ -175,12 +181,12 @@ function openWishModal(item, catId) {
   document.getElementById("wish-item-url").value   = item ? (item.url || "") : "";
   document.getElementById("wish-item-price").value = item && item.price != null ? item.price : "";
   document.getElementById("wish-modal-title").textContent = item ? "Edit Item" : "Add Item";
-  wishModal.classList.add("open");
+  openModal(wishModal);
   setTimeout(() => document.getElementById("wish-item-name").focus(), 50);
 }
 
 function closeWishModal() {
-  wishModal.classList.remove("open");
+  closeModal(wishModal);
 }
 
 wishItemForm.addEventListener("submit", async (e) => {

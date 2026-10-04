@@ -557,7 +557,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-radius: var(--radius);
   transition: box-shadow var(--transition), opacity var(--transition),
               transform var(--transition), border-color var(--transition);
-  animation: slideIn 0.2s ease;
   cursor: grab;
 }
 
@@ -581,9 +580,16 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   padding: 6px 16px;
 }
 
+/* Only on items new since the last render (see newItemTracker in ui.js).
+   No "to" keyframe, so it ends at the item's own opacity: faded done items
+   don't flash to full white. */
+.todo-item.entering,
+.wishlist-item.entering {
+  animation: slideIn 0.2s ease;
+}
+
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 .todo-item:hover {
@@ -923,9 +929,14 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ── Modal ─────────────────────────────────────────────────────────────── */
+/* --vv-top / --vvh track the visible area (set in ui.js), so the modal stays
+   above the iOS keyboard instead of sliding underneath it */
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  top: var(--vv-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--vvh, 100%);
   background: rgba(45, 42, 38, 0.4);
   display: none;
   align-items: center;
@@ -949,8 +960,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   padding: 28px;
   width: 90%;
   max-width: 560px;
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Scrolling a field into view keeps it clear of the sticky Save bar */
+  scroll-padding-bottom: 96px;
   box-shadow: var(--shadow-lg);
   animation: scaleIn 0.2s ease;
+}
+
+/* Background stays put while a modal is open (top is set in ui.js) */
+body.modal-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  overflow: hidden;
 }
 
 @keyframes scaleIn {
@@ -990,97 +1014,23 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .modal-actions {
+  position: sticky;
+  bottom: -28px;
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  margin-top: 6px;
-}
-
-/* ── Markdown editor (Write/Preview) ──────────────────────────────────── */
-.md-editor {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  overflow: hidden;
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-
-.md-editor:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-
-.md-tabs {
-  display: flex;
-  gap: 2px;
-  padding: 6px 6px 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
-.md-tab {
-  padding: 6px 14px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: inherit;
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  border-radius: 6px 6px 0 0;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.md-tab:hover {
-  color: var(--text);
-}
-
-.md-tab.active {
-  color: var(--text);
+  margin: 6px -28px -28px;
+  padding: 12px 28px 28px;
   background: var(--surface);
 }
 
-.md-editor textarea {
+/* ── Edit description ──────────────────────────────────────────────────── */
+/* Grows with the visible area (shrinks when the keyboard opens) */
+.edit-desc {
   display: block;
-  border: none;
-  border-radius: 0;
+  height: clamp(160px, calc(var(--vvh, 100vh) * 0.5), 420px);
+  line-height: 1.5;
   resize: vertical;
-}
-
-.md-editor textarea[hidden] {
-  display: none;
-}
-
-.md-editor textarea:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-.md-preview {
-  padding: 10px 12px;
-  min-height: 96px;
-  max-height: 240px;
-  overflow-y: auto;
-}
-
-.md-preview:empty::before {
-  content: "Nothing to preview yet";
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.md-hint {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.md-hint code {
-  font-family: "SF Mono", Menlo, Monaco, monospace;
-  font-size: 0.72rem;
-  padding: 1px 4px;
-  background: var(--bg);
-  border-radius: 4px;
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
@@ -1088,6 +1038,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   .container { padding: 24px 14px 60px; }
   header h1 { font-size: 1.5rem; }
   .form-row-fields { flex-direction: column; }
+  .modal { width: calc(100% - 24px); padding: 20px; }
+  .modal-actions { bottom: -20px; margin: 6px -20px -20px; padding: 12px 20px 20px; }
 }
 
 /* ── Form row fields ────────────────────────────────────────────────────── */
@@ -1220,7 +1172,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-radius: var(--radius);
   transition: box-shadow var(--transition), opacity var(--transition),
               transform var(--transition), border-color var(--transition);
-  animation: slideIn 0.2s ease;
   cursor: grab;
 }
 
@@ -1536,4 +1487,17 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: var(--shadow-lg);
   cursor: pointer;
   z-index: 1000;
+}
+
+/* iOS zooms into any focused field with text under 16px, and the page then
+   stays zoomed in. Touch screens get 16px fields everywhere. */
+@media (pointer: coarse) {
+  input[type],
+  textarea,
+  select,
+  .add-input,
+  .add-desc,
+  .add-date {
+    font-size: 16px;
+  }
 }
