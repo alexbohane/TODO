@@ -425,6 +425,18 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 0.7;
 }
 
+/* Buttons in a header mustn't make it taller than a text-only one, so the
+   title-to-divider spacing is the same on every tab */
+.section-header .btn-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.section-header .category-add-btn,
+.section-header .btn-icon {
+  margin-block: -4px;
+}
+
 .section-done .todo-item {
   opacity: 0.5;
 }
@@ -616,11 +628,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   font-weight: 700;
 }
 
-/* Content */
+/* Content — wraps so badges/prices drop to a second line on narrow
+   screens instead of squeezing the name to one letter wide */
 .todo-content {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px 6px;
   flex: 1;
   min-width: 0;
   cursor: pointer;
@@ -856,6 +870,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .todo-due {
   font-size: 0.78rem;
+  font-weight: 500;
   color: var(--text-muted);
   flex-shrink: 0;
   white-space: nowrap;
@@ -1124,6 +1139,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* ── Add form simple (no expand animation) ──────────────────────────────── */
 .add-form-simple {
   margin-bottom: 28px;
+  border: 1px solid transparent;
+  padding: 4px 0;
 }
 
 /*
@@ -1268,8 +1285,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .wish-check.checked {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--success);
+  border-color: var(--success);
 }
 
 .wish-check.checked::after {
@@ -1281,8 +1298,9 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .wishlist-content {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px 6px;
   flex: 1;
   min-width: 0;
   cursor: pointer;
@@ -1298,7 +1316,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 .wishlist-price {
   flex-shrink: 0;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 500;
   color: var(--text-muted);
   white-space: nowrap;
@@ -1385,7 +1403,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 16px 20px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .subs-total {
@@ -1423,11 +1441,22 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .wishlist-item.covered {
-  opacity: 0.55;
+  opacity: 0.5;
+}
+
+.wishlist-item.covered:hover {
+  opacity: 0.7;
 }
 
 #tab-subs.detailed .wishlist-details {
   display: block;
+}
+
+.form-group .sub-paid-label {
+  font-weight: 400;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .sub-paid-label {
@@ -1490,4 +1519,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   color: var(--danger);
   font-size: 0.84rem;
   margin: -6px 0 10px;
+}
+
+/* ── Error toast ── */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  max-width: min(90vw, 420px);
+  padding: 10px 16px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.88rem;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  z-index: 1000;
 }

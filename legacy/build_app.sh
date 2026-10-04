@@ -5,7 +5,7 @@ set -euo pipefail
 APP_NAME="TodoApp"
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="${PROJECT_DIR}/${APP_NAME}.app"
-VENV_PYTHON="${PROJECT_DIR}/.venv/bin/python"
+VENV_PYTHON="${PROJECT_DIR}/../.venv/bin/python"
 
 # ── Clean previous build ──────────────────────────────────────────────────
 rm -rf "${APP_DIR}"

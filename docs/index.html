@@ -342,9 +342,14 @@
     </div>
   </div>
 
+  <div id="toast" class="toast" role="alert" hidden></div>
+
+  <!-- Vendored libraries + config (classic scripts, define globals) -->
   <script src="supabase.min.js"></script>
   <script src="config.js"></script>
   <script src="marked.min.js"></script>
-  <script src="app.js"></script>
+  <script src="purify.min.js"></script>
+  <!-- App code: ES modules under js/, entry point main.js -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
