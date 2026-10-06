@@ -1621,8 +1621,8 @@ body.modal-open {
 }
 
 /* ── Numbers ───────────────────────────────────────────────────────────── */
-/* Cards reuse the wishlist item styles; single-value entries are one row,
-   multi-value ones list a row per field under the name */
+/* Cards reuse the wishlist item styles: name + ⋯ on top, a row per value
+   below, with ⋯ and the copy buttons sharing the right-hand column */
 .number-value {
   font-family: "SF Mono", Menlo, Monaco, monospace;
   font-size: 0.84rem;
@@ -1661,8 +1661,7 @@ body.modal-open {
 }
 
 /* Copy sits where the checkbox does on other tabs */
-.copy-btn,
-.copy-btn-spacer {
+.copy-btn {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
@@ -1707,6 +1706,11 @@ body.modal-open {
 .field-row .field-label {
   flex: 0 0 34%;
   min-width: 0;
+}
+
+/* Labels only appear once there are 2+ values (see fieldEditor) */
+.field-editor:not(.show-labels) .field-label {
+  display: none;
 }
 
 .field-row .field-value {

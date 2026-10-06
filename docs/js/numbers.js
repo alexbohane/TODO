@@ -37,52 +37,37 @@ function renderNumbers() {
 
 const copyButton = (index) =>
   `<button class="btn-icon copy-btn" data-action="copy" data-index="${index}" title="Copy">${COPY_ICON}</button>`;
-const menuButton =
-  `<button class="btn-icon item-menu-btn" data-action="menu" title="More" aria-haspopup="menu" aria-expanded="false">${MENU_ICON}</button>`;
 
-// One value: a single row (name, value, ⋯, copy). Several: name + ⋯ on top,
-// then a row per field with its own copy button, aligned with the ⋯ column.
+// Every entry is a card: name + ⋯ on top, then one row per value with its
+// own copy button (⋯ and copy share the right-hand column). Labels show
+// when an entry has any; unlabelled single values are just the value.
 function renderEntry(entry) {
   const li = document.createElement("li");
   li.className = "wishlist-item number-item";
   li.dataset.id = entry.id;
 
   const fields = entry.fields || [];
-  const single = fields.length <= 1;
+  const labelled = fields.some((f) => f.label);
   const notes = entry.notes
     ? `<div class="wishlist-details"><div class="wishlist-desc">${escapeHtml(entry.notes)}</div></div>`
     : "";
 
-  if (single) {
-    li.innerHTML = `
-      <div class="wishlist-header">
-        <div class="wishlist-content">
-          <div class="wishlist-name">${escapeHtml(entry.name)}</div>
-          <span class="number-value">${escapeHtml(fields[0]?.value || "")}</span>
-        </div>
-        ${menuButton}
-        ${copyButton(0)}
+  li.innerHTML = `
+    <div class="wishlist-header">
+      <div class="wishlist-content">
+        <div class="wishlist-name">${escapeHtml(entry.name)}</div>
       </div>
-      ${notes}`;
-  } else {
-    li.innerHTML = `
-      <div class="wishlist-header">
-        <div class="wishlist-content">
-          <div class="wishlist-name">${escapeHtml(entry.name)}</div>
-        </div>
-        ${menuButton}
-        <span class="copy-btn-spacer"></span>
-      </div>
-      <div class="number-fields">
-        ${fields.map((f, i) => `
-          <div class="number-field">
-            <span class="number-label">${escapeHtml(f.label)}</span>
-            <span class="number-value">${escapeHtml(f.value)}</span>
-            ${copyButton(i)}
-          </div>`).join("")}
-      </div>
-      ${notes}`;
-  }
+      <button class="btn-icon item-menu-btn" data-action="menu" title="More" aria-haspopup="menu" aria-expanded="false">${MENU_ICON}</button>
+    </div>
+    <div class="number-fields">
+      ${fields.map((f, i) => `
+        <div class="number-field">
+          ${labelled ? `<span class="number-label">${escapeHtml(f.label)}</span>` : ""}
+          <span class="number-value">${escapeHtml(f.value)}</span>
+          ${copyButton(i)}
+        </div>`).join("")}
+    </div>
+    ${notes}`;
   return li;
 }
 
@@ -105,8 +90,9 @@ async function copyText(text) {
 }
 
 // ── Field editor (add form + edit modal) ──────────────────────────────────
-// Rows of [label][value][✕] plus "+ Add field". Labels are optional; the ✕
-// only shows once there's more than one row.
+// Rows of [label][value][✕] plus "+ Add field". A single value needs no
+// label, so label boxes only show with 2+ rows (or when one already has
+// text, so nothing saved is ever hidden). The ✕ also needs 2+ rows.
 function fieldEditor(container) {
   container.innerHTML = `<div class="field-rows"></div>
     <button type="button" class="add-field-btn">+ Add field</button>`;
@@ -128,7 +114,9 @@ function fieldEditor(container) {
   }
 
   function refresh() {
-    const all = rows.querySelectorAll(".field-row");
+    const all = [...rows.querySelectorAll(".field-row")];
+    const showLabels = all.length > 1 || all.some((r) => r.querySelector(".field-label").value.trim());
+    container.classList.toggle("show-labels", showLabels);
     all.forEach((r) => { r.querySelector(".field-remove").hidden = all.length === 1; });
   }
 
