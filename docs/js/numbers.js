@@ -5,12 +5,14 @@ import {
 } from "./ui.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
-// Each entry: { id, name, notes, fields: [{ label, value }, ...] }
+// Each entry: { id, name, notes, pinned, fields: [{ label, value }, ...] }
 let entries = [];
 const trackEntries = newItemTracker();
 
 const list  = document.getElementById("numbers-list");
 const empty = document.getElementById("numbers-empty");
+
+const PIN_ICON = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path class="pin-head" d="M6 2h4l-.6 4 2.6 2.5v1H4v-1L6.6 6z"/><path d="M8 9.5V14" stroke-linecap="round"/></svg>`;
 
 const COPY_ICON = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5"/></svg>`;
 
@@ -20,8 +22,15 @@ export async function loadNumbers() {
   renderNumbers();
 }
 
-function renderNumbers() {
+// Pinned first, then everything else; A–Z within each.
+// keepOpen re-expands the cards that were open (used when pinning, so the
+// list reorders without closing what you're looking at).
+function renderNumbers({ keepOpen = false } = {}) {
+  const open = keepOpen
+    ? new Set([...list.querySelectorAll(".number-item.expanded")].map((li) => li.dataset.id))
+    : new Set();
   const sorted = [...entries].sort((a, b) =>
+    (b.pinned === true) - (a.pinned === true) ||
     a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
   );
   const isNew = trackEntries(sorted.map((e) => e.id));
@@ -30,6 +39,7 @@ function renderNumbers() {
   for (const entry of sorted) {
     const li = renderEntry(entry);
     if (isNew(entry.id)) li.classList.add("entering");
+    if (open.has(String(entry.id))) li.classList.add("expanded");
     list.appendChild(li);
   }
   empty.hidden = sorted.length > 0;
@@ -41,6 +51,7 @@ const copyButton = (index) =>
 // Every entry is a card: name + ⋯ on top, then one row per value with its
 // own copy button (⋯ and copy share the right-hand column). Labels show
 // when an entry has any; unlabelled single values are just the value.
+// Values and notes stay hidden until the card is tapped (CSS .expanded).
 function renderEntry(entry) {
   const li = document.createElement("li");
   li.className = "wishlist-item number-item";
@@ -57,6 +68,8 @@ function renderEntry(entry) {
       <div class="wishlist-content">
         <div class="wishlist-name">${escapeHtml(entry.name)}</div>
       </div>
+      <button class="btn-icon pin-btn${entry.pinned ? " pinned" : ""}" data-action="pin"
+              title="${entry.pinned ? "Unpin" : "Pin to top"}" aria-pressed="${entry.pinned === true}">${PIN_ICON}</button>
       <button class="btn-icon item-menu-btn" data-action="menu" title="More" aria-haspopup="menu" aria-expanded="false">${MENU_ICON}</button>
     </div>
     <div class="number-fields">
@@ -187,7 +200,8 @@ list.addEventListener("click", async (e) => {
   if (!item) return;
   const actionEl = e.target.closest("[data-action]");
 
-  // Tapping a value selects it all, so it can also be copied by hand
+  // Tapping the card reveals/hides its values; tapping a value itself
+  // selects it all (for copying by hand) without collapsing the card
   if (!actionEl) {
     if (!e.target.closest(".number-value")) item.classList.toggle("expanded");
     return;
@@ -197,7 +211,17 @@ list.addEventListener("click", async (e) => {
   const entry = entries.find((x) => x.id === id);
   if (!entry) return;
 
-  if (actionEl.dataset.action === "copy") {
+  if (actionEl.dataset.action === "pin") {
+    // Instant: reorder now, save in the background; reload if it fails
+    entry.pinned = !entry.pinned;
+    renderNumbers({ keepOpen: true });
+    try {
+      await db(sb.from("important_numbers").update({ pinned: entry.pinned }).eq("id", id));
+    } catch (err) {
+      await loadNumbers();
+      throw err;
+    }
+  } else if (actionEl.dataset.action === "copy") {
     await copyText(entry.fields[Number(actionEl.dataset.index)].value);
     actionEl.classList.add("copied");
     setTimeout(() => actionEl.classList.remove("copied"), 1200);

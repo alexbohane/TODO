@@ -1633,11 +1633,18 @@ body.modal-open {
   cursor: text;
 }
 
+/* Collapsed to just the name until tapped (or ☰ detailed view), like the
+   other tabs' cards */
 .number-fields {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 2px;
   padding: 0 16px 8px;
+}
+
+.number-item.expanded .number-fields,
+#tab-numbers.detailed .number-fields {
+  display: flex;
 }
 
 .number-field {
@@ -1674,6 +1681,31 @@ body.modal-open {
 
 .copy-btn.copied {
   color: var(--success);
+}
+
+/* Pin: just left of ⋯ — faint outline until pinned, then filled accent */
+.pin-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-block: -4px;
+  margin-right: -8px; /* sits closer to ⋯ than the header's 12px gap */
+  color: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+.pin-btn:hover {
+  opacity: 1;
+}
+
+.pin-btn.pinned {
+  color: var(--accent);
+  opacity: 1;
+}
+
+.pin-btn.pinned .pin-head {
+  fill: currentColor;
 }
 
 #tab-numbers.detailed .wishlist-details {

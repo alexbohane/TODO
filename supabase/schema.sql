@@ -117,3 +117,9 @@ create policy "authenticated full access" on important_numbers
 
 grant select, insert, update, delete on important_numbers to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
+
+-- ── Added 2026-10-07: pin numbers to the top ─────────────────────────────────
+-- Run this on its own in the SQL Editor (safe to re-run).
+
+alter table important_numbers
+  add column if not exists pinned boolean not null default false;
