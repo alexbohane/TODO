@@ -50,6 +50,7 @@
       <button class="tab-btn active" data-tab="todos">Todos</button>
       <button class="tab-btn" data-tab="wishlist">Wishlist</button>
       <button class="tab-btn" data-tab="subs">Subs</button>
+      <button class="tab-btn" data-tab="numbers">Numbers</button>
     </nav>
 
     <!-- ── Todos panel ── -->
@@ -203,6 +204,24 @@
         <p class="wishlist-section-empty" id="subs-optional-empty">Nothing yet.</p>
       </section>
     </div>
+    <!-- ── Numbers panel ── -->
+    <div id="tab-numbers" class="tab-panel" hidden>
+      <form id="num-add-form" class="add-form" novalidate>
+        <div class="add-main">
+          <input type="text" id="num-name-input" class="add-input" placeholder="What do you need to remember?" required>
+          <button type="submit" class="add-submit" title="Add">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3v12M3 9h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="add-extras">
+          <div class="field-editor" id="num-add-fields"></div>
+          <textarea id="num-notes-input" rows="1" class="add-desc" placeholder="Add notes…"></textarea>
+        </div>
+      </form>
+
+      <ul class="wishlist-list" id="numbers-list"></ul>
+      <p id="numbers-empty" class="empty-state" hidden>Nothing saved yet — add something above.</p>
+    </div>
   </div>
 
   <!-- Edit todo modal -->
@@ -286,6 +305,35 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" id="wish-modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Number modal (edit only; new entries come from the add form) -->
+  <div id="num-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit Number</h2>
+        <button class="modal-close" id="num-modal-close">&times;</button>
+      </div>
+      <form id="num-form" novalidate>
+        <input type="hidden" id="num-id">
+        <div class="form-group">
+          <label for="num-name">Name</label>
+          <input type="text" id="num-name" placeholder="e.g. Passport">
+        </div>
+        <div class="form-group">
+          <label>Values</label>
+          <div class="field-editor" id="num-edit-fields"></div>
+        </div>
+        <div class="form-group">
+          <label for="num-notes">Notes</label>
+          <textarea id="num-notes" class="modal-desc" rows="1" placeholder="Add notes…"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="num-modal-cancel">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>

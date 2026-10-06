@@ -17,11 +17,13 @@ export const priceFmt = new Intl.NumberFormat(undefined, {
 const toast = document.getElementById("toast");
 let toastTimer = null;
 
-export function showToast(message) {
+// Red error message by default; { info: true } for a short neutral note
+export function showToast(message, { info = false } = {}) {
   toast.textContent = message;
+  toast.classList.toggle("info", info);
   toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.hidden = true; }, 5000);
+  toastTimer = setTimeout(() => { toast.hidden = true; }, info ? 1500 : 5000);
 }
 
 toast.addEventListener("click", () => { toast.hidden = true; });

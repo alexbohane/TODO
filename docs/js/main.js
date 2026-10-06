@@ -5,6 +5,7 @@ import { showToast } from "./ui.js";
 import { loadTodos, todoLists } from "./todos.js";
 import { loadWishlist } from "./wishlist.js";
 import { loadSubs } from "./subs.js";
+import { loadNumbers } from "./numbers.js";
 
 // ── Errors ────────────────────────────────────────────────────────────────
 // Any failed db() call ends up here, so failures are visible instead of
@@ -20,7 +21,7 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-const TAB_TITLES = { todos: "Todos", wishlist: "Wishlist", subs: "Subscriptions" };
+const TAB_TITLES = { todos: "Todos", wishlist: "Wishlist", subs: "Subscriptions", numbers: "Numbers" };
 
 function switchTab(name) {
   document.querySelectorAll(".tab-btn").forEach((b) =>
@@ -32,6 +33,7 @@ function switchTab(name) {
   document.getElementById("page-title").textContent = TAB_TITLES[name];
   if (name === "wishlist") loadWishlist();
   if (name === "subs") loadSubs();
+  if (name === "numbers") loadNumbers();
 }
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -47,6 +49,7 @@ viewToggle.addEventListener("click", () => {
   todoLists.forEach((list) => list.classList.toggle("detailed", detailedView));
   document.getElementById("wishlist-categories").classList.toggle("detailed", detailedView);
   document.getElementById("tab-subs").classList.toggle("detailed", detailedView);
+  document.getElementById("tab-numbers").classList.toggle("detailed", detailedView);
   viewToggle.classList.toggle("active", detailedView);
   document.getElementById("view-icon").textContent = detailedView ? "▤" : "☰";
 });

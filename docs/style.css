@@ -7,6 +7,12 @@
   padding: 0;
 }
 
+/* The hidden attribute always hides, even on elements whose class sets a
+   display value (e.g. .btn-icon's inline-flex) */
+[hidden] {
+  display: none !important;
+}
+
 :root {
   --bg: #faf8f5;
   --surface: #ffffff;
@@ -1607,4 +1613,127 @@ body.modal-open {
   .add-field {
     font-size: 16px;
   }
+}
+
+/* Neutral, short-lived toast (e.g. "Copied") */
+.toast.info {
+  background: var(--text);
+}
+
+/* ── Numbers ───────────────────────────────────────────────────────────── */
+/* Cards reuse the wishlist item styles; single-value entries are one row,
+   multi-value ones list a row per field under the name */
+.number-value {
+  font-family: "SF Mono", Menlo, Monaco, monospace;
+  font-size: 0.84rem;
+  color: var(--text-soft);
+  overflow-wrap: anywhere; /* wrap at spaces (IBAN groups) before mid-chunk */
+  user-select: all; /* one tap selects the whole value for manual copying */
+  -webkit-user-select: all;
+  cursor: text;
+}
+
+.number-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 16px 8px;
+}
+
+.number-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.number-field .number-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.number-label {
+  flex-shrink: 0;
+  min-width: 72px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Copy sits where the checkbox does on other tabs */
+.copy-btn,
+.copy-btn-spacer {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-block: -4px;
+}
+
+.copy-btn {
+  color: var(--text-muted);
+}
+
+.copy-btn.copied {
+  color: var(--success);
+}
+
+#tab-numbers.detailed .wishlist-details {
+  display: block;
+}
+
+/* Add form holds several field rows */
+#num-add-form.open .add-extras {
+  max-height: 480px;
+}
+
+/* Field editor: [label][value][✕] rows + "+ Add field" */
+.field-editor {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-row .field-label {
+  flex: 0 0 34%;
+  min-width: 0;
+}
+
+.field-row .field-value {
+  flex: 1;
+  min-width: 0;
+  font-family: "SF Mono", Menlo, Monaco, monospace;
+}
+
+.field-remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.add-field-btn {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.add-field-btn:hover {
+  color: var(--accent-hover);
 }
