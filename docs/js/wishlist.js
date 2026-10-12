@@ -4,6 +4,12 @@ import {
   expandOnFocus, openItemMenu, MENU_ICON, flagInvalid,
 } from "./ui.js";
 import { loadFx, toEUR, formatAmount, parseAmount } from "./money.js";
+import { seal, openRows } from "./crypto.js";
+
+// What you type is encrypted (see crypto.js); which category an item is in
+// and whether it's bought stay readable so dragging and ticking are instant
+const CATEGORY_SECRET = ["name"];
+const ITEM_SECRET = ["name", "description", "url", "price", "currency"];
 
 // ── State ─────────────────────────────────────────────────────────────────
 let wishCategories = [];
@@ -19,10 +25,14 @@ makeGrowing(wishItemDesc);
 
 // ── Render ────────────────────────────────────────────────────────────────
 export async function loadWishlist() {
-  [wishCategories, wishItems] = await Promise.all([
+  const [cats, items] = await Promise.all([
     db(sb.from("wishlist_categories").select("*").order("created_at")),
     db(sb.from("wishlist_items").select("*").order("created_at")),
     loadFx(),
+  ]);
+  [wishCategories, wishItems] = await Promise.all([
+    openRows("wishlist_categories", cats, CATEGORY_SECRET),
+    openRows("wishlist_items", items, ITEM_SECRET),
   ]);
   renderWishlist();
 }
@@ -168,17 +178,19 @@ wishAddForm.addEventListener("submit", async (e) => {
   if (pickedCategory === "new") {
     const catName = newCategoryInput.value.trim();
     if (!catName) return newCategoryInput.focus();
-    const cat = await db(sb.from("wishlist_categories").insert({ name: catName }).select().single());
+    const cat = await db(sb.from("wishlist_categories").insert(await seal(CATEGORY_SECRET, { name: catName })).select("id").single());
     pickedCategory = cat.id; // also where the next item goes
   }
 
   await db(sb.from("wishlist_items").insert({
-    name,
-    description: wishDescInput.value.trim() || null,
-    url:         wishUrlInput.value.trim() || null,
-    price,
-    currency:    wishCurrencyInput.value,
     category_id: pickedCategory,
+    ...(await seal(ITEM_SECRET, {
+      name,
+      description: wishDescInput.value.trim() || null,
+      url:         wishUrlInput.value.trim() || null,
+      price,
+      currency:    wishCurrencyInput.value,
+    })),
   }));
 
   wishAddForm.reset();
@@ -283,10 +295,11 @@ wishItemForm.addEventListener("submit", async (e) => {
     currency:    document.getElementById("wish-item-currency").value,
   };
 
+  const sealed = await seal(ITEM_SECRET, body);
   if (id) {
-    await db(sb.from("wishlist_items").update(body).eq("id", id));
+    await db(sb.from("wishlist_items").update(sealed).eq("id", id));
   } else {
-    await db(sb.from("wishlist_items").insert({ ...body, category_id: parseInt(catId) }));
+    await db(sb.from("wishlist_items").insert({ ...sealed, category_id: parseInt(catId) }));
   }
 
   closeWishModal();

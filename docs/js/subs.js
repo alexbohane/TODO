@@ -4,6 +4,11 @@ import {
   openItemMenu, MENU_ICON, flagInvalid,
 } from "./ui.js";
 import { CURRENCY_SYMBOLS, loadFx, toEUR, parseAmount } from "./money.js";
+import { seal, openRows } from "./crypto.js";
+
+// What you type is encrypted (see crypto.js); billing cycle, category and
+// who pays stay readable
+const SECRET = ["name", "price", "currency", "notes"];
 
 // ── State ─────────────────────────────────────────────────────────────────
 let subs = [];
@@ -26,10 +31,11 @@ function myMonthlyEUR(sub) {
 
 // ── Render ────────────────────────────────────────────────────────────────
 export async function loadSubs() {
-  [subs] = await Promise.all([
+  const [rows] = await Promise.all([
     db(sb.from("subscriptions").select("*").order("created_at")),
     loadFx(),
   ]);
+  subs = await openRows("subscriptions", rows, SECRET);
   renderSubs();
 }
 
@@ -175,10 +181,11 @@ subForm.addEventListener("submit", async (e) => {
   };
 
   const id = document.getElementById("sub-id").value;
+  const sealed = { ...body, ...(await seal(SECRET, body)) };
   if (id) {
-    await db(sb.from("subscriptions").update(body).eq("id", id));
+    await db(sb.from("subscriptions").update(sealed).eq("id", id));
   } else {
-    await db(sb.from("subscriptions").insert(body));
+    await db(sb.from("subscriptions").insert(sealed));
   }
 
   closeSubModal();

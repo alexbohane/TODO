@@ -37,6 +37,24 @@ export function flagInvalid(field, message) {
   showToast(message);
 }
 
+// ── Clipboard ─────────────────────────────────────────────────────────────
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (_) {
+    // Older iOS / non-secure contexts: fall back to a hidden textarea
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+}
+
 // ── Modals ────────────────────────────────────────────────────────────────
 // While a modal is open the page behind it is pinned in place, so touch
 // scrolling only ever moves the modal (iOS ignores overflow:hidden on body).

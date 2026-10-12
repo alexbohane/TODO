@@ -225,3 +225,44 @@ alter table important_numbers alter column name drop not null;
 alter table important_numbers drop constraint if exists important_numbers_name_check;
 alter table important_numbers add constraint important_numbers_name_or_secret
   check (secret is not null or (name is not null and char_length(name) between 1 and 255));
+
+-- ── Added 2026-10-12: encrypt all tabs + recovery codes ──────────────────────
+-- Run this block on its own in the SQL Editor.
+-- What you type moves into an encrypted `secret` column on every table;
+-- structure stays readable (ticks, priority, due dates, categories, billing
+-- cycle). Readable content columns may now be empty: the app encrypts
+-- existing rows in the background and clears them.
+
+alter table todos               add column secret text;  -- {title, description}
+alter table wishlist_categories add column secret text;  -- {name}
+alter table wishlist_items      add column secret text;  -- {name, description, url, price, currency}
+alter table subscriptions       add column secret text;  -- {name, price, currency, notes}
+
+alter table todos               alter column title    drop not null;
+alter table wishlist_categories alter column name     drop not null;
+alter table wishlist_items      alter column name     drop not null;
+alter table wishlist_items      alter column currency drop not null;
+alter table subscriptions       alter column name     drop not null;
+alter table subscriptions       alter column price    drop not null;
+alter table subscriptions       alter column currency drop not null;
+
+alter table todos               drop constraint if exists todos_title_check;
+alter table wishlist_categories drop constraint if exists wishlist_categories_name_check;
+alter table wishlist_items      drop constraint if exists wishlist_items_name_check;
+alter table subscriptions       drop constraint if exists subscriptions_name_check;
+
+-- A row is either encrypted, or (written before encryption) has its content
+alter table todos add constraint todos_title_or_secret
+  check (secret is not null or (title is not null and char_length(title) between 1 and 255));
+alter table wishlist_categories add constraint wishlist_categories_name_or_secret
+  check (secret is not null or (name is not null and char_length(name) between 1 and 255));
+alter table wishlist_items add constraint wishlist_items_name_or_secret
+  check (secret is not null or (name is not null and char_length(name) between 1 and 255));
+alter table subscriptions add constraint subscriptions_name_or_secret
+  check (secret is not null or (name is not null and char_length(name) between 1 and 255 and price is not null));
+
+-- Recovery code: a second wrapped copy of the data key, locked with a key
+-- derived from a random code the user saves. Restores everything after a
+-- password reset.
+alter table user_keys add column recovery_salt        text;
+alter table user_keys add column recovery_wrapped_key text;

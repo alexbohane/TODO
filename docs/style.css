@@ -1608,6 +1608,11 @@ body.modal-open {
   color: var(--accent);
 }
 
+.login-link.danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 /* The email on the set-password screen is shown, not edited (it's there so
    password managers save the new password against the right account) */
 .login-card input[readonly] {
@@ -1804,29 +1809,24 @@ body.modal-open {
   color: var(--accent-hover);
 }
 
-/* Numbers: unlock prompt (device without the key) and unreadable notice */
-.num-unlock {
-  margin-bottom: 28px;
-  padding: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
 
-.num-unlock-text {
-  margin-bottom: 12px;
-  font-size: 0.88rem;
-  color: var(--text-soft);
-}
-
-.num-unlock .login-error {
-  margin: 10px 0 0;
-}
-
-.num-unreadable {
-  margin-top: 16px;
-  font-size: 0.82rem;
-  color: var(--text-muted);
+/* Recovery code screen */
+.recovery-code {
+  margin: 4px 0 14px;
+  padding: 14px;
+  font-family: "SF Mono", Menlo, Monaco, monospace;
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
   text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.recovery-tip {
+  margin-top: 12px;
 }
 

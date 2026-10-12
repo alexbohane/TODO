@@ -1,87 +1,34 @@
 import { sb, db } from "./db.js";
 import {
   escapeHtml, openModal, closeModal, newItemTracker, autoGrow, makeGrowing,
-  expandOnFocus, openItemMenu, MENU_ICON, showToast, flagInvalid,
+  expandOnFocus, openItemMenu, MENU_ICON, showToast, flagInvalid, copyText,
 } from "./ui.js";
-import { getDataKey, encryptJSON, decryptJSON, unlockWithPassword } from "./crypto.js";
+import { seal, openRows } from "./crypto.js";
 
 // ── State ─────────────────────────────────────────────────────────────────
 // Each entry: { id, name, notes, pinned, fields: [{ label, value }, ...] }
-// name, fields and notes are stored encrypted in `secret` (see crypto.js);
-// only id, pinned and created_at are readable in the database.
+// name, fields and notes are stored encrypted in `secret`; only id, pinned
+// and created_at are readable in the database.
 let entries = [];
 const trackEntries = newItemTracker();
 
 const list  = document.getElementById("numbers-list");
 const empty = document.getElementById("numbers-empty");
-const unlockForm = document.getElementById("num-unlock");
-const content    = document.getElementById("num-content");
-const unreadable = document.getElementById("numbers-unreadable");
+
+// Encrypted content (see crypto.js); `fields` can't be null, so it empties to []
+const SECRET = ["name", "fields", "notes"];
+const EMPTY = { fields: [] };
 
 const PIN_ICON = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><path class="pin-head" d="M6 2h4l-.6 4 2.6 2.5v1H4v-1L6.6 6z"/><path d="M8 9.5V14" stroke-linecap="round"/></svg>`;
 
 const COPY_ICON = `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5"/></svg>`;
 
 // ── Render ────────────────────────────────────────────────────────────────
-// Encrypted payload for a row: name/fields/notes sealed, plaintext emptied
-async function sealed(key, { name, fields, notes }) {
-  return { secret: await encryptJSON(key, { name, fields, notes }), name: null, fields: [], notes: null };
-}
-
 export async function loadNumbers() {
-  // No key on this device yet (e.g. signed in before encryption existed):
-  // ask for the password instead of showing the tab
-  const key = await getDataKey();
-  unlockForm.hidden = Boolean(key);
-  content.hidden = !key;
-  if (!key) return;
-
   const rows = await db(sb.from("important_numbers").select("*"));
-  const plaintext = [];
-  let locked = 0;
-  entries = [];
-  for (const row of rows) {
-    if (row.secret) {
-      try { entries.push({ ...row, ...(await decryptJSON(key, row.secret)) }); }
-      catch (_) { locked++; } // sealed with a key this device doesn't have
-    } else {
-      entries.push(row);
-      plaintext.push(row);
-    }
-  }
+  entries = await openRows("important_numbers", rows, SECRET, EMPTY);
   renderNumbers();
-  unreadable.hidden = locked === 0;
-  unreadable.textContent = `${locked} ${locked === 1 ? "entry" : "entries"} couldn't be unlocked.`;
-
-  // Entries saved before encryption: encrypt them now, clearing the plaintext
-  for (const row of plaintext) {
-    await db(sb.from("important_numbers").update(await sealed(key, row)).eq("id", row.id));
-  }
 }
-
-unlockForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const input = document.getElementById("num-unlock-password");
-  const errEl = document.getElementById("num-unlock-error");
-  const btn = unlockForm.querySelector("[type=submit]");
-  errEl.hidden = true;
-  btn.disabled = true;
-  try {
-    // Check the password with Supabase first, so a typo can never be used
-    // to create a key
-    const { data: { session } } = await sb.auth.getSession();
-    const { error } = await sb.auth.signInWithPassword({ email: session.user.email, password: input.value });
-    if (error) throw error;
-    await unlockWithPassword(input.value);
-    unlockForm.reset();
-    await loadNumbers();
-  } catch (err) {
-    errEl.textContent = err.message || "Couldn't unlock with that password.";
-    errEl.hidden = false;
-  } finally {
-    btn.disabled = false;
-  }
-});
 
 // Pinned first, then everything else; A–Z within each.
 // keepOpen re-expands the cards that were open (used when pinning, so the
@@ -143,24 +90,6 @@ function renderEntry(entry) {
     </div>
     ${notes}`;
   return li;
-}
-
-// ── Copy ──────────────────────────────────────────────────────────────────
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch (_) {
-    // Older iOS / non-secure contexts: fall back to a hidden textarea
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-  }
 }
 
 // ── Field editor (add form + edit modal) ──────────────────────────────────
@@ -238,10 +167,8 @@ addForm.addEventListener("submit", async (e) => {
   const fields = addFields.read();
   if (!fields) return;
 
-  const key = await getDataKey();
-  if (!key) return loadNumbers(); // shows the unlock prompt
   await db(sb.from("important_numbers").insert(
-    await sealed(key, { name, fields, notes: notesInput.value.trim() || null })
+    await seal(SECRET, { name, fields, notes: notesInput.value.trim() || null }, EMPTY)
   ));
 
   addForm.reset();
@@ -329,10 +256,8 @@ numForm.addEventListener("submit", async (e) => {
   if (!fields) return;
 
   const id = Number(document.getElementById("num-id").value);
-  const key = await getDataKey();
-  if (!key) { closeNumModal(); return loadNumbers(); }
   await db(sb.from("important_numbers").update(
-    await sealed(key, { name, fields, notes: numNotes.value.trim() || null })
+    await seal(SECRET, { name, fields, notes: numNotes.value.trim() || null }, EMPTY)
   ).eq("id", id));
 
   closeNumModal();

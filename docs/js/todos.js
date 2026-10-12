@@ -4,6 +4,11 @@ import {
   expandOnFocus, openItemMenu, MENU_ICON, syncDateFields,
 } from "./ui.js";
 import { renderDesc, attachMarkdownEditing } from "./markdown.js";
+import { seal, openRows } from "./crypto.js";
+
+// What you type is encrypted (see crypto.js); priority, status and due
+// date/time stay readable so ticking, dragging and sorting are instant
+const SECRET = ["title", "description"];
 
 // ── State ─────────────────────────────────────────────────────────────────
 let currentSort = "newest";
@@ -119,7 +124,7 @@ function renderTodo(todo) {
 }
 
 export async function loadTodos() {
-  const all = await db(sb.from("todos").select("*"));
+  const all = await openRows("todos", await db(sb.from("todos").select("*")), SECRET);
   todoCache = new Map(all.map((t) => [t.id, t]));
   renderTodos();
 }
@@ -198,9 +203,8 @@ async function toggleChecklistBox(itemEl, checkbox) {
   const updatedDesc = toggleTaskInMarkdown(todo.description, Number(checkbox.dataset.checkIndex));
   if (updatedDesc === todo.description) return;
 
-  const updated = await db(
-    sb.from("todos").update({ description: updatedDesc }).eq("id", id).select().single()
-  );
+  const updated = { ...todo, description: updatedDesc };
+  await db(sb.from("todos").update(await seal(SECRET, updated)).eq("id", id));
   todoCache.set(id, updated);
 
   // Re-render just this item so the expanded state survives
@@ -250,7 +254,7 @@ editForm.addEventListener("submit", async (e) => {
   todoCache.set(id, { ...todoCache.get(id), ...body });
   renderTodos();
   try {
-    await db(sb.from("todos").update(body).eq("id", id));
+    await db(sb.from("todos").update({ ...body, ...(await seal(SECRET, body)) }).eq("id", id));
   } catch (err) {
     await loadTodos();
     throw err;
@@ -295,7 +299,7 @@ addForm.addEventListener("submit", async (e) => {
     if (dueTime) body.due_time = dueTime;
   }
 
-  await db(sb.from("todos").insert(body));
+  await db(sb.from("todos").insert({ ...body, ...(await seal(SECRET, body)) }));
 
   addForm.reset();
   autoGrow(descInput);

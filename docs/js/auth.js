@@ -1,45 +1,50 @@
 import { sb, authLink } from "./db.js";
-import { unlockWithPassword, resetDataKey, forgetDeviceKeys } from "./crypto.js";
+import {
+  getDataKey, keyStatus, unlockWithPassword, restoreWithRecoveryCode, startFresh, forgetDeviceKeys,
+} from "./crypto.js";
+import { copyText } from "./ui.js";
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 // Invite-only: accounts are created in the Supabase dashboard (signups are
 // disabled), and row-level security limits each user to their own rows.
 // New users arrive from an invite email and choose their own password here;
 // it goes straight to Supabase, so the owner never sees it.
-const loginScreen    = document.getElementById("login-screen");
-const passwordScreen = document.getElementById("password-screen");
-const appContainer   = document.querySelector(".container");
+//
+// Data is encrypted in the browser (crypto.js), so being signed in isn't
+// enough to show the app: this device also needs the user's data key, which
+// only the password (or, after a reset, the recovery code) can unlock.
+
+const SCREENS = ["login-screen", "password-screen", "unlock-screen", "recovery-screen", "restore-screen"];
+const appContainer = document.querySelector(".container");
 
 let onSignedIn = async () => {};
 
-export function showLogin() {
-  loginScreen.hidden = false;
-  passwordScreen.hidden = true;
-  appContainer.hidden = true;
+// Shows one of the full-page screens, or the app when `id` is null
+function showScreen(id) {
+  for (const screen of SCREENS) document.getElementById(screen).hidden = screen !== id;
+  appContainer.hidden = id !== null;
 }
 
+export function showLogin() {
+  showScreen("login-screen");
+}
+
+// Shows a message in a screen, hiding that screen's other messages
 function showMessage(id, text) {
-  for (const el of loginScreen.querySelectorAll(".login-error, .login-info")) el.hidden = true;
+  const card = document.getElementById(id).closest(".login-card");
+  for (const el of card.querySelectorAll(".login-error, #login-info")) el.hidden = true;
   const el = document.getElementById(id);
   el.textContent = text;
   el.hidden = false;
 }
 
-// Invite links ("Set your password") and reset links ("Reset your password")
-function showPasswordScreen(email, isReset) {
-  document.getElementById("password-title").textContent = isReset ? "Reset your password" : "Set your password";
-  document.getElementById("password-note").hidden = !isReset;
-  document.getElementById("password-email").value = email;
-  loginScreen.hidden = true;
-  appContainer.hidden = true;
-  passwordScreen.hidden = false;
-  document.getElementById("new-password").focus();
-}
-
-async function showApp() {
-  loginScreen.hidden = true;
-  appContainer.hidden = false;
-  await onSignedIn();
+// Disables a form's submit button (and says so) while `work` runs
+async function busy(form, label, work) {
+  const btn = form.querySelector("[type=submit]");
+  const text = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = label;
+  try { return await work(); } finally { btn.disabled = false; btn.textContent = text; }
 }
 
 // `onReady` runs whenever the app becomes visible (page load or sign-in).
@@ -59,7 +64,7 @@ export async function initAuth(onReady) {
   if (session && (authLink.type === "invite" || authLink.type === "recovery")) {
     showPasswordScreen(session.user.email, authLink.type === "recovery");
   } else if (session) {
-    await showApp();
+    await enterApp(session.user.email);
   } else {
     showLogin();
     // e.g. an invite link that was already used or has expired
@@ -70,15 +75,31 @@ export async function initAuth(onReady) {
   }
 }
 
-// Disables a form's submit button (and says so) while `work` runs
-async function busy(form, label, work) {
-  const btn = form.querySelector("[type=submit]");
-  const text = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = label;
-  try { return await work(); } finally { btn.disabled = false; btn.textContent = text; }
+// Signed in: show the app if this device can decrypt; otherwise ask for the
+// password (also used once to create a recovery code for older keys)
+async function enterApp(email) {
+  const [status, key] = await Promise.all([keyStatus(), getDataKey()]);
+  if (key && status === "ready") {
+    showScreen(null);
+    return onSignedIn();
+  }
+  const forRecovery = Boolean(key) && status === "legacy";
+  document.getElementById("unlock-title").textContent = forRecovery ? "Create your recovery code" : "Unlock";
+  document.getElementById("unlock-text").textContent = forRecovery
+    ? "Your data is now encrypted. Enter your password once to create a recovery code, in case you ever forget it."
+    : "Your data is encrypted. Enter your password to unlock it on this device.";
+  document.getElementById("unlock-email").value = email;
+  showScreen("unlock-screen");
+  document.getElementById("unlock-password").focus();
 }
 
+// After unlocking: show a new recovery code first if one was just made
+function finishUnlock(recoveryCode, then) {
+  if (recoveryCode) showRecoveryCode(recoveryCode, then);
+  else then();
+}
+
+// ── Sign in ───────────────────────────────────────────────────────────────
 document.getElementById("login-form").addEventListener("submit", (e) => {
   e.preventDefault();
   busy(e.target, "Signing in…", signIn);
@@ -92,14 +113,56 @@ async function signIn() {
   });
   if (error) return showMessage("login-error", error.message);
   // The password is only available now: use it to unlock (or, the first
-  // time, create) this user's encryption key on this device. If that fails
-  // the Numbers tab asks for the password again instead.
-  try { await unlockWithPassword(password); } catch (err) { console.error(err); }
+  // time, create) the encryption key. If that fails, the unlock screen asks
+  // again after the reload.
+  let recoveryCode;
+  try { ({ recoveryCode } = await unlockWithPassword(password)); } catch (err) { console.error(err); }
   // Start from a fresh page so nothing from an earlier session on this
   // device (another user's lists, picked category, …) can show through
-  location.reload();
+  finishUnlock(recoveryCode, () => location.reload());
 }
 
+// ── Unlock (signed in, but this device has no key) ────────────────────────
+document.getElementById("unlock-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  busy(e.target, "Unlocking…", unlock);
+});
+
+async function unlock() {
+  const email = document.getElementById("unlock-email").value;
+  const password = document.getElementById("unlock-password").value;
+  // Check the password with Supabase first, so a typo can never be used to
+  // create a key
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) return showMessage("unlock-error", error.message);
+  try {
+    const { recoveryCode } = await unlockWithPassword(password);
+    finishUnlock(recoveryCode, () => location.reload());
+  } catch (err) {
+    console.error(err);
+    showMessage("unlock-error", "That password couldn't unlock your data.");
+  }
+}
+
+document.getElementById("unlock-signout").addEventListener("click", async () => {
+  await forgetDeviceKeys();
+  await sb.auth.signOut(); // triggers SIGNED_OUT → reload
+});
+
+// ── Recovery code (shown once) ────────────────────────────────────────────
+function showRecoveryCode(code, then) {
+  document.getElementById("recovery-code").textContent = code;
+  showScreen("recovery-screen");
+  document.getElementById("recovery-done").onclick = then;
+}
+
+document.getElementById("recovery-copy").addEventListener("click", async (e) => {
+  await copyText(document.getElementById("recovery-code").textContent);
+  e.target.textContent = "Copied";
+  setTimeout(() => { e.target.textContent = "Copy code"; }, 1500);
+});
+
+// ── Forgot password ───────────────────────────────────────────────────────
 // Emails a reset link that comes back to this page (see initAuth). The reply
 // is the same whether or not the address has an account.
 document.getElementById("forgot-btn").addEventListener("click", async () => {
@@ -116,30 +179,83 @@ document.getElementById("forgot-btn").addEventListener("click", async () => {
   showMessage("login-info", "If that email has an account, a link to reset your password is on its way.");
 });
 
+// ── Choose a password (invite and reset links) ────────────────────────────
+function showPasswordScreen(email, isReset) {
+  document.getElementById("password-title").textContent = isReset ? "Reset your password" : "Set your password";
+  document.getElementById("password-note").hidden = !isReset;
+  document.getElementById("password-email").value = email;
+  showScreen("password-screen");
+  document.getElementById("new-password").focus();
+}
+
+// Into the app, without the email link's "#…" in the address
+const continueToApp = () => location.replace(location.pathname);
+
 document.getElementById("password-form").addEventListener("submit", (e) => {
   e.preventDefault();
   busy(e.target, "Saving…", savePassword);
 });
 
 async function savePassword() {
-  const errEl = document.getElementById("password-error");
   const password = document.getElementById("new-password").value;
-  const fail = (text) => { errEl.textContent = text; errEl.hidden = false; };
+  const fail = (text) => showMessage("password-error", text);
 
   if (password.length < 8) return fail("Use at least 8 characters.");
   if (password !== document.getElementById("confirm-password").value) return fail("The passwords don't match.");
 
   const { error } = await sb.auth.updateUser({ password });
   if (error) return fail(error.message);
-  // New users get an encryption key; after a reset the old one can't be
-  // opened, so its entries are cleared and a new key made
-  try {
-    if (authLink.type === "recovery") await resetDataKey(password);
-    else await unlockWithPassword(password);
-  } catch (err) { console.error(err); }
-  // Into the app, without the email link's "#…" in the address
-  location.replace(location.pathname);
+
+  // A reset leaves the data key locked to the old password: bring it back
+  // with the recovery code (or start fresh). Otherwise unlock or create it.
+  const status = authLink.type === "recovery" ? await keyStatus() : "none";
+  if (status !== "none") return showRestore(password, status === "ready");
+  let recoveryCode;
+  try { ({ recoveryCode } = await unlockWithPassword(password)); } catch (err) { console.error(err); }
+  finishUnlock(recoveryCode, continueToApp);
 }
+
+// ── Restore after a reset ─────────────────────────────────────────────────
+let newPassword = null;
+
+function showRestore(password, hasRecoveryCode) {
+  newPassword = password;
+  document.getElementById("restore-code-group").hidden = !hasRecoveryCode;
+  document.getElementById("restore-submit").hidden = !hasRecoveryCode;
+  document.getElementById("restore-text").textContent = hasRecoveryCode
+    ? "Enter your recovery code to unlock your data with your new password."
+    : "Your data was encrypted before recovery codes existed, so it can't be unlocked with a new password.";
+  document.getElementById("start-fresh").textContent = hasRecoveryCode ? "I don't have it: start fresh" : "Start fresh";
+  showScreen("restore-screen");
+  if (hasRecoveryCode) document.getElementById("restore-code").focus();
+}
+
+document.getElementById("restore-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  busy(e.target, "Restoring…", async () => {
+    try {
+      await restoreWithRecoveryCode(document.getElementById("restore-code").value, newPassword);
+      continueToApp();
+    } catch (err) {
+      console.error(err);
+      showMessage("restore-error", "That recovery code doesn't match. Check it and try again.");
+    }
+  });
+});
+
+// Deleting everything needs a second tap
+let freshArmed = false;
+document.getElementById("start-fresh").addEventListener("click", async (e) => {
+  if (!freshArmed) {
+    freshArmed = true;
+    e.target.textContent = "Tap again to delete your encrypted data and start fresh";
+    e.target.classList.add("danger");
+    return;
+  }
+  e.target.disabled = true;
+  const { recoveryCode } = await startFresh(newPassword);
+  finishUnlock(recoveryCode, continueToApp);
+});
 
 document.getElementById("signout-btn").addEventListener("click", async () => {
   await forgetDeviceKeys();
