@@ -45,6 +45,16 @@ other's data in the app. The project owner can still see everything in the
 Supabase dashboard. The key in `config.js` is the *publishable* key and is
 safe to ship in the browser.
 
+### Encryption (Numbers tab)
+
+Numbers entries are encrypted in the browser (`docs/js/crypto.js`, Web Crypto
+AES-GCM) before they reach Supabase, so the database and dashboard only hold
+ciphertext. Each user has a random data key, stored in `user_keys` wrapped
+with a key derived from their password (PBKDF2-SHA256, 600k iterations); the
+unwrapped key lives only on the user's devices (IndexedDB, non-extractable)
+and is wiped on sign-out. There is no recovery: after a password reset,
+previously encrypted entries can't be unlocked and are cleared.
+
 ### External calls
 
 Besides Supabase, the Subscriptions tab fetches EUR→GBP/USD rates from

@@ -193,3 +193,35 @@ create policy "own rows" on important_numbers
   for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
 commit;
+
+-- ── Added 2026-10-12: client-side encryption (Numbers tab first) ─────────────
+-- Run this block on its own in the SQL Editor.
+-- Values are encrypted in the browser with a per-user data key; the database
+-- only ever stores ciphertext. The data key itself is stored here locked
+-- ("wrapped") with a key derived from the user's password, so neither the
+-- owner nor the dashboard can read it. No recovery: a forgotten password
+-- means encrypted entries can't be unlocked.
+
+create table user_keys (
+  user_id     uuid primary key default auth.uid() references auth.users (id) on delete cascade,
+  kdf         text not null default 'pbkdf2-sha256-600000',
+  salt        text not null,  -- base64, for deriving the password key
+  wrapped_key text not null,  -- base64: 12-byte IV + AES-GCM-wrapped data key
+  created_at  timestamptz not null default now()
+);
+
+alter table user_keys enable row level security;
+
+create policy "own rows" on user_keys
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+grant select, insert, update, delete on user_keys to authenticated;
+
+-- Numbers: name/fields/notes move into one encrypted blob. Plaintext columns
+-- stay (empty) for rows written before encryption, which the app encrypts
+-- the first time it unlocks.
+alter table important_numbers add column secret text;  -- base64: 12-byte IV + AES-GCM ciphertext of {name, fields, notes}
+alter table important_numbers alter column name drop not null;
+alter table important_numbers drop constraint if exists important_numbers_name_check;
+alter table important_numbers add constraint important_numbers_name_or_secret
+  check (secret is not null or (name is not null and char_length(name) between 1 and 255));

@@ -40,6 +40,7 @@
   <div id="password-screen" class="login-screen" hidden>
     <form id="password-form" class="login-card" novalidate>
       <h1 id="password-title">Set your password</h1>
+      <p id="password-note" class="login-info" hidden>Your Numbers are encrypted with your old password, so they can't be unlocked after a reset and will be cleared.</p>
       <div class="form-group">
         <label for="password-email">Email</label>
         <input type="email" id="password-email" autocomplete="username" readonly>
@@ -229,6 +230,17 @@
     </div>
     <!-- ── Numbers panel ── -->
     <div id="tab-numbers" class="tab-panel" hidden>
+      <!-- Shown instead of the tab when this device doesn't have the key yet -->
+      <form id="num-unlock" class="num-unlock" hidden novalidate>
+        <p class="num-unlock-text">🔒 Your Numbers are encrypted. Enter your password to unlock them on this device.</p>
+        <div class="add-main">
+          <input type="password" id="num-unlock-password" autocomplete="current-password" placeholder="Password">
+          <button type="submit" class="btn btn-primary">Unlock</button>
+        </div>
+        <p id="num-unlock-error" class="login-error" hidden></p>
+      </form>
+
+      <div id="num-content">
       <form id="num-add-form" class="add-form" novalidate>
         <div class="add-main">
           <input type="text" id="num-name-input" class="add-input" placeholder="What do you need to remember?" required>
@@ -244,6 +256,8 @@
 
       <ul class="wishlist-list" id="numbers-list"></ul>
       <p id="numbers-empty" class="empty-state" hidden>Nothing saved yet — add something above.</p>
+      <p id="numbers-unreadable" class="num-unreadable" hidden></p>
+      </div>
     </div>
   </div>
 
