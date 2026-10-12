@@ -19,6 +19,24 @@ const appContainer = document.querySelector(".container");
 
 let onSignedIn = async () => {};
 
+// An invite or reset link only works once, but the page can reload before a
+// password is chosen (iOS reopening the app, a refresh). Remember, per user
+// on this device, that one is still owed, so they come back to that screen
+// instead of an Unlock screen asking for a password they never set.
+const PENDING_KEY = "pendingPassword";
+
+function pendingPassword(userId) {
+  try {
+    const pending = JSON.parse(localStorage.getItem(PENDING_KEY));
+    return pending?.userId === userId ? pending.type : null;
+  } catch (_) { return null; }
+}
+
+function setPendingPassword(userId, type) {
+  if (type) localStorage.setItem(PENDING_KEY, JSON.stringify({ userId, type }));
+  else localStorage.removeItem(PENDING_KEY);
+}
+
 // Shows one of the full-page screens, or the app when `id` is null
 function showScreen(id) {
   for (const screen of SCREENS) document.getElementById(screen).hidden = screen !== id;
@@ -62,7 +80,12 @@ export async function initAuth(onReady) {
   const { data: { session } } = await sb.auth.getSession();
 
   if (session && (authLink.type === "invite" || authLink.type === "recovery")) {
-    showPasswordScreen(session.user.email, authLink.type === "recovery");
+    setPendingPassword(session.user.id, authLink.type);
+  }
+  const pending = session && pendingPassword(session.user.id);
+
+  if (pending) {
+    showPasswordScreen(session.user.email, pending === "recovery");
   } else if (session) {
     await enterApp(session.user.email);
   } else {
@@ -145,6 +168,7 @@ async function unlock() {
 }
 
 document.getElementById("unlock-signout").addEventListener("click", async () => {
+  localStorage.removeItem(PENDING_KEY);
   await forgetDeviceKeys();
   await sb.auth.signOut(); // triggers SIGNED_OUT → reload
 });
@@ -208,7 +232,9 @@ async function savePassword() {
 
   // A reset leaves the data key locked to the old password: bring it back
   // with the recovery code (or start fresh). Otherwise unlock or create it.
-  const status = authLink.type === "recovery" ? await keyStatus() : "none";
+  const { data: { session } } = await sb.auth.getSession();
+  const status = pendingPassword(session.user.id) === "recovery" ? await keyStatus() : "none";
+  setPendingPassword(session.user.id, null); // password chosen: link no longer needed
   if (status !== "none") return showRestore(password, status === "ready");
   let recoveryCode;
   try { ({ recoveryCode } = await unlockWithPassword(password)); } catch (err) { console.error(err); }
@@ -258,6 +284,7 @@ document.getElementById("start-fresh").addEventListener("click", async (e) => {
 });
 
 document.getElementById("signout-btn").addEventListener("click", async () => {
+  localStorage.removeItem(PENDING_KEY);
   await forgetDeviceKeys();
   await sb.auth.signOut(); // triggers SIGNED_OUT → reload
 });

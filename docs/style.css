@@ -1826,7 +1826,8 @@ body.modal-open {
   -webkit-user-select: all;
 }
 
-.recovery-tip {
+.recovery-tip,
+.unlock-hint {
   margin-top: 12px;
 }
 
