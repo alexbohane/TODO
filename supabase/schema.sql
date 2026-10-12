@@ -123,3 +123,73 @@ grant usage, select on all sequences in schema public to authenticated;
 
 alter table important_numbers
   add column if not exists pinned boolean not null default false;
+
+-- ── Added 2026-10-12: multi-user — every row belongs to one user ─────────────
+-- Run this block on its own in the SQL Editor, BEFORE creating a second user:
+-- existing rows are given to the only account that exists right now. It stops
+-- (and changes nothing) if there isn't exactly one user.
+
+begin;
+
+do $$
+declare n int := (select count(*) from auth.users);
+begin
+  if n <> 1 then
+    raise exception 'Expected exactly 1 user before backfilling, found %', n;
+  end if;
+end $$;
+
+-- 1. Owner column. New rows get the signed-in user automatically, so the app
+--    doesn't send it; deleting a user deletes their data.
+alter table todos               add column user_id uuid default auth.uid() references auth.users (id) on delete cascade;
+alter table wishlist_categories add column user_id uuid default auth.uid() references auth.users (id) on delete cascade;
+alter table wishlist_items      add column user_id uuid default auth.uid() references auth.users (id) on delete cascade;
+alter table subscriptions       add column user_id uuid default auth.uid() references auth.users (id) on delete cascade;
+alter table important_numbers   add column user_id uuid default auth.uid() references auth.users (id) on delete cascade;
+
+-- 2. Backfill: everything that exists today is yours
+update todos               set user_id = (select id from auth.users);
+update wishlist_categories set user_id = (select id from auth.users);
+update wishlist_items      set user_id = (select id from auth.users);
+update subscriptions       set user_id = (select id from auth.users);
+update important_numbers   set user_id = (select id from auth.users);
+
+-- 3. Required from now on, and indexed (every query filters on it)
+alter table todos               alter column user_id set not null;
+alter table wishlist_categories alter column user_id set not null;
+alter table wishlist_items      alter column user_id set not null;
+alter table subscriptions       alter column user_id set not null;
+alter table important_numbers   alter column user_id set not null;
+
+create index todos_user_id_idx               on todos (user_id);
+create index wishlist_categories_user_id_idx on wishlist_categories (user_id);
+create index wishlist_items_user_id_idx      on wishlist_items (user_id);
+create index subscriptions_user_id_idx       on subscriptions (user_id);
+create index important_numbers_user_id_idx   on important_numbers (user_id);
+
+-- 4. A wishlist item may only sit in one of its owner's own categories
+--    (otherwise someone could attach items to another user's category id)
+alter table wishlist_categories add constraint wishlist_categories_id_user_key unique (id, user_id);
+alter table wishlist_items drop constraint if exists wishlist_items_category_id_fkey;
+alter table wishlist_items add constraint wishlist_items_category_owner_fkey
+  foreign key (category_id, user_id) references wishlist_categories (id, user_id) on delete cascade;
+
+-- 5. Row-level security: each user sees and changes only their own rows
+drop policy "authenticated full access" on todos;
+drop policy "authenticated full access" on wishlist_categories;
+drop policy "authenticated full access" on wishlist_items;
+drop policy "authenticated full access" on subscriptions;
+drop policy "authenticated full access" on important_numbers;
+
+create policy "own rows" on todos
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "own rows" on wishlist_categories
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "own rows" on wishlist_items
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "own rows" on subscriptions
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "own rows" on important_numbers
+  for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+commit;
