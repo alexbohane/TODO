@@ -1552,11 +1552,6 @@ body.modal-open {
   padding: 20px;
 }
 
-/* our display:flex would otherwise defeat the hidden attribute */
-.login-screen[hidden] {
-  display: none;
-}
-
 .login-card {
   width: 100%;
   max-width: 340px;
@@ -1565,6 +1560,10 @@ body.modal-open {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 32px 28px;
+}
+
+.login-card .form-group {
+  margin-bottom: 14px;
 }
 
 .login-card h1 {
@@ -1579,10 +1578,41 @@ body.modal-open {
   margin-top: 4px;
 }
 
+.login-error,
+.login-info {
+  font-size: 0.84rem;
+  margin: -4px 0 12px;
+}
+
 .login-error {
   color: var(--danger);
+}
+
+.login-info {
+  color: var(--text-soft);
+}
+
+.login-link {
+  display: block;
+  margin: 14px auto 0;
+  padding: 0;
   font-size: 0.84rem;
-  margin: -6px 0 10px;
+  font-family: inherit;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.login-link:hover {
+  color: var(--accent);
+}
+
+/* The email on the set-password screen is shown, not edited (it's there so
+   password managers save the new password against the right account) */
+.login-card input[readonly] {
+  background: var(--bg);
+  color: var(--text-muted);
 }
 
 /* ── Error toast ── */

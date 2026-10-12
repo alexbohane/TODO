@@ -30,7 +30,30 @@
         <input type="password" id="login-password" autocomplete="current-password" required>
       </div>
       <p id="login-error" class="login-error" hidden></p>
+      <p id="login-info" class="login-info" hidden></p>
       <button type="submit" class="btn btn-primary login-submit">Sign in</button>
+      <button type="button" id="forgot-btn" class="login-link">Forgot password?</button>
+    </form>
+  </div>
+
+  <!-- Choose a password: reached from an invite or password-reset email link -->
+  <div id="password-screen" class="login-screen" hidden>
+    <form id="password-form" class="login-card" novalidate>
+      <h1 id="password-title">Set your password</h1>
+      <div class="form-group">
+        <label for="password-email">Email</label>
+        <input type="email" id="password-email" autocomplete="username" readonly>
+      </div>
+      <div class="form-group">
+        <label for="new-password">New password</label>
+        <input type="password" id="new-password" autocomplete="new-password" placeholder="At least 8 characters">
+      </div>
+      <div class="form-group">
+        <label for="confirm-password">Confirm password</label>
+        <input type="password" id="confirm-password" autocomplete="new-password">
+      </div>
+      <p id="password-error" class="login-error" hidden></p>
+      <button type="submit" class="btn btn-primary login-submit">Save password</button>
     </form>
   </div>
 

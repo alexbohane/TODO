@@ -1,4 +1,13 @@
 // ── Supabase client ───────────────────────────────────────────────────────
+// Invite and password-reset email links land on the app with details after
+// the "#": type=invite|recovery (plus the session), or an error such as an
+// expired link. Read it now, before the client below consumes and clears it.
+const linkParams = new URLSearchParams(location.hash.slice(1));
+export const authLink = {
+  type:  linkParams.get("type"),
+  error: linkParams.get("error_description"),
+};
+
 // `supabase` and `SUPABASE_CONFIG` are globals from the classic scripts
 // supabase.min.js and config.js, loaded before this module.
 export const sb = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
