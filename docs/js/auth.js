@@ -1,7 +1,8 @@
 import { sb } from "./db.js";
 
 // ── Auth ──────────────────────────────────────────────────────────────────
-// Single user; signups are disabled server-side.
+// Invite-only: accounts are created in the Supabase dashboard (signups are
+// disabled), and row-level security limits each user to their own rows.
 const loginScreen  = document.getElementById("login-screen");
 const appContainer = document.querySelector(".container");
 
@@ -22,10 +23,11 @@ async function showApp() {
 export async function initAuth(onReady) {
   onSignedIn = onReady;
 
-  // Fires if the refresh token is rejected while the page is open, so an
-  // expired session lands back on the login screen instead of failing silently
+  // Fires on sign-out, or if the refresh token is rejected while the page is
+  // open. Reloading (rather than just showing the login screen) drops every
+  // bit of the previous user's data from memory and the page.
   sb.auth.onAuthStateChange((event) => {
-    if (event === "SIGNED_OUT") showLogin();
+    if (event === "SIGNED_OUT") location.reload();
   });
 
   const { data: { session } } = await sb.auth.getSession();
@@ -46,11 +48,11 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
     errEl.hidden = false;
     return;
   }
-  document.getElementById("login-form").reset();
-  await showApp();
+  // Start from a fresh page so nothing from an earlier session on this
+  // device (another user's lists, picked category, …) can show through
+  location.reload();
 });
 
 document.getElementById("signout-btn").addEventListener("click", async () => {
-  await sb.auth.signOut();
-  showLogin();
+  await sb.auth.signOut(); // triggers SIGNED_OUT → reload
 });

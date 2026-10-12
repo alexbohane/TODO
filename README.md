@@ -37,10 +37,13 @@ docs/  ──(GitHub Pages)──►  browser  ──(supabase-js)──►  Sup
 
 ### Security model
 
-Single-user app. Signups are disabled in Supabase Auth, and every table's RLS
-policy allows only `authenticated` users, so only the one account can read or
-write data. The key in `config.js` is the *publishable* key and is safe to
-ship in the browser.
+Invite-only. Signups are disabled in Supabase Auth; accounts are created by
+the owner in the dashboard (Authentication → Users → Add user). Every table
+has a `user_id` (filled automatically from the signed-in user) and an RLS
+policy that limits each user to their own rows, so users never see each
+other's data in the app. The project owner can still see everything in the
+Supabase dashboard. The key in `config.js` is the *publishable* key and is
+safe to ship in the browser.
 
 ### External calls
 
